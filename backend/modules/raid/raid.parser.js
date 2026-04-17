@@ -7,8 +7,12 @@
  */
 
 const fs = require('fs');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const logger = require('../../lib/logger');
+
+// Matches valid mdadm array paths: /dev/md0, /dev/md127 etc. Used to prevent
+// shell/argument injection when an array name is interpolated into a command.
+const ARRAY_NAME_PATTERN = /^\/dev\/md\d+$/;
 
 class RAIDParser {
   /**
@@ -199,27 +203,36 @@ class RAIDParser {
 
   /**
    * Get RAID details via mdadm
+   *
+   * SECURITY: arrayName is passed as an argument to execFile (not as part of a
+   * shell command string) AND is validated against a strict regex so that
+   * callers cannot inject shell metacharacters or extra arguments even if a
+   * shell were reintroduced later.
    */
   static getMdadmDetail(arrayName = null) {
-    return new Promise((resolve, reject) => {
-      let cmd = 'mdadm --detail --scan';
-      if (arrayName) {
-        cmd = `mdadm --detail ${arrayName}`;
+    return new Promise((resolve) => {
+      if (arrayName !== null && arrayName !== undefined) {
+        if (typeof arrayName !== 'string' || !ARRAY_NAME_PATTERN.test(arrayName)) {
+          logger.warn('mdadm --detail rejected: invalid array name', { arrayName });
+          return resolve(arrayName ? {} : []);
+        }
+
+        execFile('mdadm', ['--detail', arrayName], { timeout: 5000 }, (err, stdout) => {
+          if (err) {
+            logger.warn('mdadm --detail command failed', { error: err.message });
+            return resolve({});
+          }
+          resolve(this.parseMdadmDetail(stdout));
+        });
+        return;
       }
 
-      exec(cmd, { timeout: 5000 }, (err, stdout, stderr) => {
+      execFile('mdadm', ['--detail', '--scan'], { timeout: 5000 }, (err, stdout) => {
         if (err) {
-          logger.warn('mdadm --detail command failed', { error: err.message });
-          return resolve([]); // Return empty if mdadm not available
+          logger.warn('mdadm --detail --scan command failed', { error: err.message });
+          return resolve([]);
         }
-        
-        if (arrayName) {
-          // Single array detail
-          resolve(this.parseMdadmDetail(stdout));
-        } else {
-          // Scan output
-          resolve(this.parseMdadmScan(stdout));
-        }
+        resolve(this.parseMdadmScan(stdout));
       });
     });
   }
@@ -229,13 +242,15 @@ class RAIDParser {
    */
   static getMdadmVersion() {
     return new Promise((resolve) => {
-      exec('mdadm --version', { timeout: 2000 }, (err, stdout) => {
+      execFile('mdadm', ['--version'], { timeout: 2000 }, (err, stdout, stderr) => {
         if (err) {
           resolve(null);
-        } else {
-          const match = stdout.match(/version ([\d.]+)/);
-          resolve(match ? match[1] : null);
+          return;
         }
+        // mdadm prints version info to stderr on some distros
+        const output = `${stdout || ''}${stderr || ''}`;
+        const match = output.match(/version ([\d.]+)/);
+        resolve(match ? match[1] : null);
       });
     });
   }

@@ -12,11 +12,16 @@
 const express = require('express');
 const logger = require('../../lib/logger');
 const { ShareService } = require('./share.service');
+const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
 
+// All share routes are mounted behind `requireAuth` in app.js. Destructive
+// operations additionally require the `admin` role so non-admin authenticated
+// users cannot modify the NAS share configuration.
+
 // ── Create share ─────────────────────────────────────────────────────
-router.post('/create', async (req, res) => {
+router.post('/create', requireRole('admin'), async (req, res) => {
   try {
     logger.info('Share API: Create');
     const { name, basePath, filesystem } = req.body;
@@ -36,7 +41,7 @@ router.post('/create', async (req, res) => {
 });
 
 // ── Delete share ─────────────────────────────────────────────────────
-router.delete('/delete', async (req, res) => {
+router.delete('/delete', requireRole('admin'), async (req, res) => {
   try {
     logger.info('Share API: Delete');
     const { name, removeDirectory = false } = req.body;
@@ -86,7 +91,7 @@ router.get('/get/:name', async (req, res) => {
 });
 
 // ── Update services (SMB / NFS / FTP) ────────────────────────────────
-router.put('/:name/services', async (req, res) => {
+router.put('/:name/services', requireRole('admin'), async (req, res) => {
   try {
     const { name } = req.params;
     const serviceUpdates = req.body; // { smb: {...}, nfs: {...}, ftp: {...} }
@@ -108,7 +113,7 @@ router.put('/:name/services', async (req, res) => {
 });
 
 // ── Update permissions (batch ACL) ───────────────────────────────────
-router.put('/:name/permissions', async (req, res) => {
+router.put('/:name/permissions', requireRole('admin'), async (req, res) => {
   try {
     const { name } = req.params;
     const { permissions } = req.body; // [{ subject: "user:john", access: "write" }, ...]

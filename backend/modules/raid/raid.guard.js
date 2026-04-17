@@ -15,8 +15,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const logger = require('../../lib/logger');
+
+// Strict device path pattern — only /dev/<alphanumeric> is allowed. Used as
+// defense-in-depth so that even if an upstream caller skips schema validation,
+// a malicious device name cannot reach child_process with shell metacharacters.
+const DEVICE_PATH_PATTERN = /^\/dev\/[a-zA-Z0-9]+$/;
+
+function isSafeDevicePath(device) {
+  return typeof device === 'string' && DEVICE_PATH_PATTERN.test(device);
+}
 
 class RAIDGuard {
   /**
@@ -200,12 +209,16 @@ class RAIDGuard {
    */
   static async isDeviceMounted(device) {
     return new Promise((resolve) => {
-      exec(`lsblk -n -o MOUNTPOINT ${device} 2>/dev/null | grep -v '^$'`, (err, stdout) => {
-        if (err || !stdout.trim()) {
-          resolve(false);
-        } else {
-          resolve(stdout.trim());
+      if (!isSafeDevicePath(device)) {
+        logger.warn('isDeviceMounted: rejecting unsafe device path', { device });
+        return resolve(false);
+      }
+      execFile('lsblk', ['-n', '-o', 'MOUNTPOINT', device], { timeout: 5000 }, (err, stdout) => {
+        if (err) {
+          return resolve(false);
         }
+        const mountpoints = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+        resolve(mountpoints.length > 0 ? mountpoints[0] : false);
       });
     });
   }
@@ -216,13 +229,16 @@ class RAIDGuard {
    */
   static async isInRAID(device) {
     return new Promise((resolve) => {
-      exec(`mdadm --examine ${device} 2>/dev/null | grep -i 'array MD'`, (err, stdout) => {
-        if (err || !stdout.trim()) {
-          resolve(false);
-        } else {
-          const match = stdout.match(/array\s+(\/dev\/md\d+)/i);
-          resolve(match ? match[1] : false);
+      if (!isSafeDevicePath(device)) {
+        logger.warn('isInRAID: rejecting unsafe device path', { device });
+        return resolve(false);
+      }
+      execFile('mdadm', ['--examine', device], { timeout: 5000 }, (err, stdout) => {
+        if (err || !stdout) {
+          return resolve(false);
         }
+        const match = stdout.match(/array\s+(\/dev\/md\d+)/i);
+        resolve(match ? match[1] : false);
       });
     });
   }
@@ -233,15 +249,25 @@ class RAIDGuard {
    */
   static async isSystemDisk(device) {
     return new Promise((resolve) => {
-      // Get system disk from /
-      exec('df / | tail -1 | awk \'{print $1}\'', (err, stdout) => {
-        if (err || !stdout.trim()) {
-          resolve(false);
-        } else {
-          const systemDevice = stdout.trim().replace(/\d+$/, ''); // Remove partition number
-          const checkDevice = device.replace(/\d+$/, '');
-          resolve(systemDevice === checkDevice);
+      if (!isSafeDevicePath(device)) {
+        logger.warn('isSystemDisk: rejecting unsafe device path', { device });
+        return resolve(false);
+      }
+      // Get system disk from / — use df without a shell pipeline so user input
+      // can never reach a shell interpreter.
+      execFile('df', ['--output=source', '/'], { timeout: 5000 }, (err, stdout) => {
+        if (err || !stdout) {
+          return resolve(false);
         }
+        const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+        // Skip header "Filesystem"
+        const source = lines.length > 1 ? lines[1] : '';
+        if (!source) {
+          return resolve(false);
+        }
+        const systemDevice = source.replace(/\d+$/, '');
+        const checkDevice = device.replace(/\d+$/, '');
+        resolve(systemDevice === checkDevice);
       });
     });
   }
@@ -252,8 +278,16 @@ class RAIDGuard {
    */
   static async isRootDevice(device) {
     return new Promise((resolve) => {
-      exec(`lsblk -n -o MOUNTPOINT ${device} 2>/dev/null | grep -E '^/$'`, (err) => {
-        resolve(!err); // If grep succeeds, mounted at /
+      if (!isSafeDevicePath(device)) {
+        logger.warn('isRootDevice: rejecting unsafe device path', { device });
+        return resolve(false);
+      }
+      execFile('lsblk', ['-n', '-o', 'MOUNTPOINT', device], { timeout: 5000 }, (err, stdout) => {
+        if (err || !stdout) {
+          return resolve(false);
+        }
+        const mountpoints = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+        resolve(mountpoints.includes('/'));
       });
     });
   }

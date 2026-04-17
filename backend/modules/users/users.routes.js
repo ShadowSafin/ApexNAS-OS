@@ -14,8 +14,14 @@ const logger = require('../../lib/logger');
 const { UserService } = require('./user.service');
 const { validate } = require('../../middleware/validate');
 const { createUserSchema, changePasswordSchema } = require('./user.schema');
+const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
+
+// All user routes are mounted behind `requireAuth` in app.js. Mutating
+// operations additionally require the `admin` role so that non-admin
+// authenticated users cannot create, delete, or reset credentials for other
+// system accounts.
 
 /**
  * GET /api/users
@@ -63,7 +69,7 @@ router.get('/:username', async (req, res) => {
  * POST /api/users
  * Create a new user
  */
-router.post('/', validate(createUserSchema), async (req, res) => {
+router.post('/', requireRole('admin'), validate(createUserSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
     logger.info('User API: Create user', { username });
@@ -86,7 +92,7 @@ router.post('/', validate(createUserSchema), async (req, res) => {
  * DELETE /api/users/:username
  * Delete a user
  */
-router.delete('/:username', async (req, res) => {
+router.delete('/:username', requireRole('admin'), async (req, res) => {
   try {
     const { username } = req.params;
     logger.info('User API: Delete user', { username });
@@ -109,7 +115,7 @@ router.delete('/:username', async (req, res) => {
  * PUT /api/users/:username/password
  * Change user password
  */
-router.put('/:username/password', validate(changePasswordSchema), async (req, res) => {
+router.put('/:username/password', requireRole('admin'), validate(changePasswordSchema), async (req, res) => {
   try {
     const { username } = req.params;
     const { password } = req.body;

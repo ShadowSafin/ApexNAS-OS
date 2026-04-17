@@ -16,6 +16,17 @@ const router = express.Router();
 const logger = require('../../lib/logger');
 const RAIDService = require('./raid.service');
 const RAIDSchema = require('./raid.schema');
+const { requireRole } = require('../../middleware/auth');
+
+// All RAID routes are mounted behind `requireAuth` in app.js. Destructive
+// operations additionally require the `admin` role — creating, stopping, or
+// wiping an array is unrecoverable and must not be reachable by ordinary
+// authenticated users.
+
+// Mirrors raid.schema `isValidDeviceName` format but for md names only.
+// Used to guard /status/:name against path/argument/shell injection before
+// the value is interpolated into command-line tooling downstream.
+const ARRAY_NAME_PATTERN = /^(?:\/dev\/)?md\d+$/;
 
 /**
  * GET /api/raid/list
@@ -67,7 +78,7 @@ router.get('/list', async (req, res) => {
  * - simulation: false + confirm → real execution
  * - confirm missing → error
  */
-router.post('/create', async (req, res) => {
+router.post('/create', requireRole('admin'), async (req, res) => {
   try {
     logger.info('RAID Route: Create request', { body: req.body });
 
@@ -119,7 +130,7 @@ router.post('/create', async (req, res) => {
  *   simulation: true         // default true (safe!)
  * }
  */
-router.post('/stop', async (req, res) => {
+router.post('/stop', requireRole('admin'), async (req, res) => {
   try {
     logger.info('RAID Route: Stop request', { body: req.body });
 
@@ -167,7 +178,7 @@ router.post('/stop', async (req, res) => {
  *   confirm: "YES_DESTROY_DATA"  // required if simulation false
  * }
  */
-router.delete('/remove', async (req, res) => {
+router.delete('/remove', requireRole('admin'), async (req, res) => {
   try {
     logger.info('RAID Route: Remove metadata request', { body: req.body });
 
@@ -214,6 +225,14 @@ router.get('/status/:name', async (req, res) => {
   try {
     const { name } = req.params;
     logger.debug('RAID Route: Status request', { name });
+
+    if (!ARRAY_NAME_PATTERN.test(name)) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_INPUT',
+        message: 'name must match /dev/mdN or mdN'
+      });
+    }
 
     const result = await RAIDService.getStatus(name);
 

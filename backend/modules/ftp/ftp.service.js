@@ -282,16 +282,23 @@ idle_session_timeout=300
       }
 
       // Set password
+      //
+      // SECURITY: The previous implementation ran `bash -c "echo '<user>:<pwd>' | chpasswd"`
+      // which interpolated user-supplied values into a shell string. A password
+      // containing a single-quote (or any shell metacharacter) could break out
+      // and execute arbitrary commands as root. We now invoke chpasswd directly
+      // via execFile and supply the `user:password` pair on stdin — no shell,
+      // no interpolation.
       try {
-        await execute('bash', [
-          '-c',
-          `echo '${username}:${password}' | chpasswd`
-        ], { timeout: 5000 });
+        await execute('chpasswd', [], {
+          timeout: 5000,
+          input: `${username}:${password}\n`
+        });
         logger.info('Set FTP user password', { username });
       } catch (err) {
-        logger.warn('Could not set FTP user password (may require root privileges)', { 
+        logger.warn('Could not set FTP user password (may require root privileges)', {
           username,
-          error: err.message 
+          error: err.message
         });
       }
 
