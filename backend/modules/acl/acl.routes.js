@@ -14,13 +14,18 @@
 const express = require('express');
 const logger = require('../../lib/logger');
 const { ACLService } = require('./acl.service');
+const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
+
+// All ACL routes are mounted behind `requireAuth` in app.js. Mutating
+// operations additionally require the `admin` role so non-admin
+// authenticated users cannot alter filesystem permissions.
 
 /**
  * POST /api/acl/set-user
  */
-router.post('/set-user', async (req, res) => {
+router.post('/set-user', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Set user permissions request');
     const { path, user, permissions, recursive = false } = req.body;
@@ -41,7 +46,7 @@ router.post('/set-user', async (req, res) => {
 /**
  * POST /api/acl/set-group
  */
-router.post('/set-group', async (req, res) => {
+router.post('/set-group', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Set group permissions request');
     const { path, group, permissions, recursive = false } = req.body;
@@ -62,7 +67,7 @@ router.post('/set-group', async (req, res) => {
 /**
  * POST /api/acl/set-default
  */
-router.post('/set-default', async (req, res) => {
+router.post('/set-default', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Set default permissions request');
     const { path, recursive = false } = req.body;
@@ -84,7 +89,7 @@ router.post('/set-default', async (req, res) => {
  * POST /api/acl/set-default-acl
  * Set inheritable default ACL on a directory
  */
-router.post('/set-default-acl', async (req, res) => {
+router.post('/set-default-acl', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Set default ACL request');
     const { path, type, qualifier, permissions, recursive = false } = req.body;
@@ -125,7 +130,7 @@ router.get('/get', async (req, res) => {
 /**
  * DELETE /api/acl/remove-user
  */
-router.delete('/remove-user', async (req, res) => {
+router.delete('/remove-user', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Remove user permissions request');
     const { path, user, recursive = false } = req.body;
@@ -146,7 +151,7 @@ router.delete('/remove-user', async (req, res) => {
 /**
  * DELETE /api/acl/remove-group
  */
-router.delete('/remove-group', async (req, res) => {
+router.delete('/remove-group', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Remove group permissions request');
     const { path, group, recursive = false } = req.body;
@@ -167,7 +172,7 @@ router.delete('/remove-group', async (req, res) => {
 /**
  * DELETE /api/acl/remove-all
  */
-router.delete('/remove-all', async (req, res) => {
+router.delete('/remove-all', requireRole('admin'), async (req, res) => {
   try {
     logger.info('ACL API: Remove all ACLs request');
     const { path, recursive = false } = req.body;

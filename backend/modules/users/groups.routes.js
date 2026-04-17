@@ -13,8 +13,13 @@ const logger = require('../../lib/logger');
 const { GroupService } = require('./group.service');
 const { validate } = require('../../middleware/validate');
 const { createGroupSchema, addMemberSchema } = require('./group.schema');
+const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
+
+// All group routes are mounted behind `requireAuth` in app.js. Mutating
+// operations additionally require the `admin` role so only administrators
+// can change group membership on the underlying Linux system.
 
 /**
  * GET /api/groups
@@ -40,7 +45,7 @@ router.get('/', async (req, res) => {
  * POST /api/groups
  * Create a new group
  */
-router.post('/', validate(createGroupSchema), async (req, res) => {
+router.post('/', requireRole('admin'), validate(createGroupSchema), async (req, res) => {
   try {
     const { name } = req.body;
     logger.info('Group API: Create group', { name });
@@ -63,7 +68,7 @@ router.post('/', validate(createGroupSchema), async (req, res) => {
  * DELETE /api/groups/:name
  * Delete a group
  */
-router.delete('/:name', async (req, res) => {
+router.delete('/:name', requireRole('admin'), async (req, res) => {
   try {
     const { name } = req.params;
     logger.info('Group API: Delete group', { name });
@@ -86,7 +91,7 @@ router.delete('/:name', async (req, res) => {
  * POST /api/groups/:name/members
  * Add a user to a group
  */
-router.post('/:name/members', validate(addMemberSchema), async (req, res) => {
+router.post('/:name/members', requireRole('admin'), validate(addMemberSchema), async (req, res) => {
   try {
     const { name } = req.params;
     const { username } = req.body;
@@ -109,7 +114,7 @@ router.post('/:name/members', validate(addMemberSchema), async (req, res) => {
  * DELETE /api/groups/:name/members/:user
  * Remove a user from a group
  */
-router.delete('/:name/members/:user', async (req, res) => {
+router.delete('/:name/members/:user', requireRole('admin'), async (req, res) => {
   try {
     const { name, user } = req.params;
     logger.info('Group API: Remove member', { group: name, username: user });

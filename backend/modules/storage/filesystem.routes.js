@@ -11,14 +11,20 @@
 const express = require('express');
 const logger = require('../../lib/logger');
 const { FilesystemService } = require('./filesystem.service');
+const { requireRole } = require('../../middleware/auth');
 
 const router = express.Router();
+
+// All filesystem routes are mounted behind `requireAuth` in app.js.
+// Destructive operations (format/mount/unmount) additionally require the
+// `admin` role to prevent any authenticated user from reformatting block
+// devices or unmounting storage.
 
 /**
  * POST /api/filesystem/create
  * Create filesystem on device
  */
-router.post('/create', async (req, res) => {
+router.post('/create', requireRole('admin'), async (req, res) => {
   try {
     logger.info('Filesystem API: Create request');
 
@@ -78,7 +84,7 @@ router.post('/detect', async (req, res) => {
  * POST /api/filesystem/mount
  * Mount filesystem
  */
-router.post('/mount', async (req, res) => {
+router.post('/mount', requireRole('admin'), async (req, res) => {
   try {
     logger.info('Filesystem API: Mount request');
 
@@ -109,7 +115,7 @@ router.post('/mount', async (req, res) => {
  * POST /api/filesystem/unmount
  * Unmount filesystem
  */
-router.post('/unmount', async (req, res) => {
+router.post('/unmount', requireRole('admin'), async (req, res) => {
   try {
     logger.info('Filesystem API: Unmount request');
 
