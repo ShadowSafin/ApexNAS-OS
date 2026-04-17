@@ -1,0 +1,63 @@
+.glass-panel {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+}
+
+/* Edge highlight pseudo-element */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--edge-highlight);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Variants ─── */
+.glass-panel--subtle {
+  background: var(--glass-subtle-bg);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.glass-panel--medium {
+  background: var(--glass-medium-bg);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border: 1px solid var(--border-medium);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-panel--strong {
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.glass-panel--solid {
+  background: var(--glass-solid-bg);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-xl);
+}
+
+/* ─── Hover Effect ─── */
+.glass-panel--hoverable:hover {
+  transform: translateY(-1px) scale(1.005);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+/* ─── Padding Variants ─── */
+.glass-panel--pad-sm { padding: var(--space-4); }
+.glass-panel--pad-md { padding: var(--space-6); }
+.glass-panel--pad-lg { padding: var(--space-8); }
+.glass-panel--pad-xl { padding: var(--space-10); }

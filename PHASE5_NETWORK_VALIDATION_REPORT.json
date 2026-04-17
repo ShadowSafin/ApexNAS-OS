@@ -1,0 +1,288 @@
+{
+  "timestamp": "2026-04-08T09:18:50.237Z",
+  "phase": "Phase 5 - Network-Level Security Validation",
+  "verdict": "NOT_SAFE",
+  "summary": {
+    "total_tests": 28,
+    "passed": 23,
+    "failed": 5,
+    "pass_rate": "82.1%"
+  },
+  "vulnerabilities": [
+    {
+      "severity": "HIGH",
+      "title": "Anonymous SMB Access Allowed",
+      "description": "Remote clients can access shares without authentication",
+      "remediation": "Configure 'guest ok = no' for all shares in smb.conf",
+      "timestamp": "2026-04-08T09:18:45.881Z"
+    },
+    {
+      "severity": "CRITICAL",
+      "title": "Path Escape Vulnerability",
+      "description": "1 dangerous paths were not blocked during validation",
+      "remediation": "Enforce strict path validation using path.resolve() and whitelist /mnt/storage only",
+      "timestamp": "2026-04-08T09:18:45.934Z"
+    },
+    {
+      "severity": "HIGH",
+      "title": "Guest SMB Access Allowed",
+      "description": "Unauthenticated users can access SMB shares",
+      "remediation": "Set guest ok = no for all user shares",
+      "timestamp": "2026-04-08T09:18:45.984Z"
+    },
+    {
+      "severity": "LOW",
+      "title": "Samba Version Enumeration",
+      "description": "Samba version is publicly visible",
+      "remediation": "Configure 'hide unreadable = yes' to reduce info disclosure",
+      "timestamp": "2026-04-08T09:18:50.143Z"
+    }
+  ],
+  "detailed_results": [
+    {
+      "test": "SMB Service Active",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.783Z",
+      "details": {
+        "status": "smbd is active"
+      }
+    },
+    {
+      "test": "SMB Share Discovery",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.835Z",
+      "details": {
+        "shares_visible": true
+      }
+    },
+    {
+      "test": "Anonymous SMB Access Blocked",
+      "status": "FAIL",
+      "timestamp": "2026-04-08T09:18:45.881Z",
+      "details": {
+        "status": "anonymous access possible"
+      }
+    },
+    {
+      "test": "NFS Service Active",
+      "status": "FAIL",
+      "timestamp": "2026-04-08T09:18:45.933Z",
+      "details": {
+        "reason": "nfs-server service not running",
+        "status": ""
+      }
+    },
+    {
+      "test": "Path Escape Prevention",
+      "status": "FAIL",
+      "timestamp": "2026-04-08T09:18:45.934Z",
+      "details": {
+        "vulnerable_paths": 1,
+        "total_tested": 8
+      }
+    },
+    {
+      "test": "Blocked Paths Enforcement",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.934Z",
+      "details": {
+        "smb": "enforces blocked paths",
+        "nfs": "enforces blocked paths"
+      }
+    },
+    {
+      "test": "SMB User Restrictions",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "protection": "valid users configured"
+      }
+    },
+    {
+      "test": "SMB File Permissions",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "create_mask": "configured",
+        "directory_mask": "configured"
+      }
+    },
+    {
+      "test": "NFS Read-Only Enforcement",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "protection": "default read-only"
+      }
+    },
+    {
+      "test": "SMB Share Configs Valid",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "total": 0,
+        "valid": 0
+      }
+    },
+    {
+      "test": "NFS Share Configs Valid",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "total": 0,
+        "valid": 0
+      }
+    },
+    {
+      "test": "NFS Root Squash Enforcement",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.935Z",
+      "details": {
+        "status": "root squash properly enforced",
+        "protected_lines": 0
+      }
+    },
+    {
+      "test": "Guest Access Restrictions",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.940Z",
+      "details": {
+        "status": "most shares block guest access",
+        "blocked": 6
+      }
+    },
+    {
+      "test": "Guest SMB Access Blocked",
+      "status": "FAIL",
+      "timestamp": "2026-04-08T09:18:45.985Z",
+      "details": {
+        "status": "guest access possible"
+      }
+    },
+    {
+      "test": "SMB Config Exists",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.985Z",
+      "details": {
+        "size": 8600
+      }
+    },
+    {
+      "test": "Network Shares DB Valid",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.985Z",
+      "details": {
+        "size": 29,
+        "format": "valid JSON"
+      }
+    },
+    {
+      "test": "Config Corruption Test",
+      "status": "FAIL",
+      "timestamp": "2026-04-08T09:18:45.985Z",
+      "details": {
+        "error": "EACCES: permission denied, open '/etc/samba/smb.conf'"
+      }
+    },
+    {
+      "test": "Concurrent Share Creation Safety",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.986Z",
+      "details": {
+        "total_shares": 0,
+        "unique": 0,
+        "status": "no duplicates detected"
+      }
+    },
+    {
+      "test": "Network Shares JSON Integrity",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:45.986Z",
+      "details": {
+        "status": "valid JSON structure"
+      }
+    },
+    {
+      "test": "SMB Service Reload",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:48.307Z",
+      "details": {
+        "status": "reload successful, service active"
+      }
+    },
+    {
+      "test": "SMB Accessibility After Reload",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.085Z",
+      "details": {
+        "shares_accessible": true
+      }
+    },
+    {
+      "test": "Shares Persisted",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.086Z",
+      "details": {
+        "status": "persistence layer ready (no shares configured)"
+      }
+    },
+    {
+      "test": "SMB Auto-Start Configured",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.098Z",
+      "details": {
+        "enabled_at_boot": true
+      }
+    },
+    {
+      "test": "Network Services Exposed",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.114Z",
+      "details": {
+        "exposed": 2,
+        "details": [
+          {
+            "port": "139",
+            "service": "SMB (NetBIOS)"
+          },
+          {
+            "port": "445",
+            "service": "SMB (direct)"
+          }
+        ]
+      }
+    },
+    {
+      "test": "System Directories Not Exposed",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.189Z",
+      "details": {
+        "protection": "system paths are not shared"
+      }
+    },
+    {
+      "test": "NFS Client IP Restrictions",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.190Z",
+      "details": {
+        "protection": "localhost or default restrictions"
+      }
+    },
+    {
+      "test": "SMB User Validation",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.190Z",
+      "details": {
+        "protection": "users are validated"
+      }
+    },
+    {
+      "test": "NFS Export Validation",
+      "status": "PASS",
+      "timestamp": "2026-04-08T09:18:50.190Z",
+      "details": {
+        "protection": "export rules are validated"
+      }
+    }
+  ]
+}

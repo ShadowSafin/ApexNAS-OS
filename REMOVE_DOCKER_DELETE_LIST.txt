@@ -1,0 +1,9 @@
+backend/modules/docker/
+backend/modules/apps/
+/etc/nas/containers.json
+/etc/nas/app-catalog.json
+/etc/nas/installed-apps.json
+Frontend/src/pages/Apps/
+Frontend/src/services/docker.service.js
+Frontend/src/services/apps.service.js
+Frontend/src/stores/docker.store.js

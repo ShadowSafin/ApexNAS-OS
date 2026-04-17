@@ -1,0 +1,17 @@
+node_modules/
+.env
+.DS_Store
+logs/
+data/
+virtual-disks/
+
+# Frontend builds
+Frontend/dist/
+Frontend/node_modules/
+Frontend/.env*
+Frontend/.eslintcache
+
+# Backend
+backend/node_modules/
+backend/.env
+backend/logs/

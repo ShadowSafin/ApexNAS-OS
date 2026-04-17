@@ -1,0 +1,52 @@
+@import '../Storage/Storage.css';
+
+.raid-page {
+  padding: var(--space-4);
+  max-width: 960px;
+  animation: fadeInUp var(--duration-slow) var(--ease-out) both;
+}
+
+.raid-array {
+  margin-bottom: var(--space-6);
+}
+
+.raid-array__disks {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.raid-disk {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.raid-disk__name {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.raid-health {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.raid-health__bar {
+  flex: 1;
+}
+
+.raid-health__label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
