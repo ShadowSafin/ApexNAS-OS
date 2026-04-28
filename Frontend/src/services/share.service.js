@@ -13,7 +13,7 @@ const shareService = {
   async listShares() {
     try {
       const response = await apiClient.get('/share/list');
-      return response.data?.shares || [];
+      return response.data;
     } catch (error) {
       throw { error: 'FETCH_SHARES_FAILED', message: error.message };
     }
@@ -96,6 +96,18 @@ const shareService = {
         message: error.response?.data?.message || error.message,
       };
     }
+  },
+
+  /**
+   * Get global service state (SMB / NFS / FTP enabled/disabled)
+   */
+  async getGlobalServiceState() {
+    try {
+      const response = await apiClient.get('/share/global-status');
+      return response.data?.globalServiceState || { smb: false, nfs: false, ftp: false };
+    } catch (error) {
+      return { smb: false, nfs: false, ftp: false };
+    }
   }
 };
 
@@ -167,4 +179,26 @@ const nfsService = {
   }
 };
 
-export { shareService, smbService, nfsService };
+/**
+ * FTP Service — for FTP page
+ */
+const ftpService = {
+  async getServiceStatus() {
+    const response = await apiClient.get('/ftp/status');
+    return response.data?.data || response.data;
+  },
+  async enableService(options = {}) {
+    const response = await apiClient.post('/ftp/enable', options);
+    return response.data;
+  },
+  async disableService() {
+    const response = await apiClient.post('/ftp/disable');
+    return response.data;
+  },
+  async listUsers() {
+    const response = await apiClient.get('/ftp/users');
+    return response.data?.data || [];
+  }
+};
+
+export { shareService, smbService, nfsService, ftpService };

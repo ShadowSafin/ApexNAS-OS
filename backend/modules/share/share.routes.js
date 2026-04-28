@@ -133,4 +133,15 @@ router.put('/:name/permissions', async (req, res) => {
   }
 });
 
+// ── Global service state ─────────────────────────────────────────────
+router.get('/global-status', async (req, res) => {
+  try {
+    const state = ShareService.getGlobalServiceState();
+    res.status(200).json({ success: true, globalServiceState: state });
+  } catch (err) {
+    logger.error('Global status error', { error: err.message });
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: err.message });
+  }
+});
+
 module.exports = router;

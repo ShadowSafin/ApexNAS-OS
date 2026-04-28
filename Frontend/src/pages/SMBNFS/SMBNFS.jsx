@@ -22,8 +22,10 @@ export default function SMBNFS() {
   });
 
   const {
+    shares,
     smbStatus,
     nfsStatus,
+    fetchShares,
     fetchSmbStatus,
     fetchNfsStatus,
     enableSmbService,
@@ -41,7 +43,8 @@ export default function SMBNFS() {
         setError(null);
         await Promise.all([
           fetchSmbStatus(),
-          fetchNfsStatus()
+          fetchNfsStatus(),
+          fetchShares()
         ]);
       } catch (err) {
         setError(err.message || 'Failed to load service status');
@@ -50,10 +53,14 @@ export default function SMBNFS() {
     };
 
     loadServices();
-  }, [fetchSmbStatus, fetchNfsStatus]);
+  }, [fetchSmbStatus, fetchNfsStatus, fetchShares]);
 
   const toggleSmb = (key) => setSmbSettings(p => ({ ...p, [key]: !p[key] }));
   const toggleNfs = (key) => setNfsSettings(p => ({ ...p, [key]: !p[key] }));
+
+  // Count shares that have each protocol enabled
+  const smbShareCount = shares?.filter(s => s.services?.smb?.enabled).length || 0;
+  const nfsShareCount = shares?.filter(s => s.services?.nfs?.enabled).length || 0;
 
   /**
    * Handle SMB service toggle
@@ -64,6 +71,12 @@ export default function SMBNFS() {
       setLoading(true);
       
       if (smbStatus?.active) {
+        if (smbShareCount > 0 && !window.confirm(
+          `Disabling SMB will make ${smbShareCount} share${smbShareCount !== 1 ? 's' : ''} inaccessible via SMB. Continue?`
+        )) {
+          setLoading(false);
+          return;
+        }
         await disableSmbService();
       } else {
         await enableSmbService();
@@ -84,6 +97,12 @@ export default function SMBNFS() {
       setLoading(true);
       
       if (nfsStatus?.active) {
+        if (nfsShareCount > 0 && !window.confirm(
+          `Disabling NFS will make ${nfsShareCount} export${nfsShareCount !== 1 ? 's' : ''} inaccessible. Continue?`
+        )) {
+          setLoading(false);
+          return;
+        }
         await disableNfsService();
       } else {
         await enableNfsService();
@@ -109,13 +128,17 @@ export default function SMBNFS() {
             <div style={{
               padding: 'var(--space-3)',
               marginBottom: 'var(--space-4)',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.15)',
               borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
-              fontSize: 'var(--font-size-sm)'
+              color: '#F87171',
+              fontSize: 'var(--font-size-sm)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
             }}>
-              <strong>Error:</strong> {error}
+              <span><strong>Error:</strong> {error}</span>
+              <button style={{ background: 'none', border: 'none', color: '#F87171', cursor: 'pointer', fontSize: '1.1rem' }} onClick={() => setError(null)}>×</button>
             </div>
           )}
 
@@ -144,6 +167,17 @@ export default function SMBNFS() {
               <div className="info-row">
                 <span className="info-row__label">Server String</span>
                 <span className="info-row__value">{smbStatus?.serverString || 'NAS-OS File Server'}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">Active Shares</span>
+                <span className="info-row__value">
+                  <span className={smbShareCount > 0 && smbEnabled ? 'share-count share-count--active' : 'share-count'}>
+                    {smbShareCount} share{smbShareCount !== 1 ? 's' : ''}
+                  </span>
+                  {smbShareCount > 0 && !smbEnabled && (
+                    <span className="share-count-hint"> (will activate when enabled)</span>
+                  )}
+                </span>
               </div>
 
               <div className="settings-group">
@@ -200,6 +234,23 @@ export default function SMBNFS() {
               <div className="info-row">
                 <span className="info-row__label">Number of Servers</span>
                 <span className="info-row__value">{nfsStatus?.numServers || '8'}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">Detected Subnet</span>
+                <span className="info-row__value" style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+                  {nfsStatus?.detectedSubnet || '—'}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">Active Exports</span>
+                <span className="info-row__value">
+                  <span className={nfsShareCount > 0 && nfsEnabled ? 'share-count share-count--active' : 'share-count'}>
+                    {nfsShareCount} export{nfsShareCount !== 1 ? 's' : ''}
+                  </span>
+                  {nfsShareCount > 0 && !nfsEnabled && (
+                    <span className="share-count-hint"> (will activate when enabled)</span>
+                  )}
+                </span>
               </div>
 
               <div className="settings-group">

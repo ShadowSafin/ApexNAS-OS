@@ -1,11 +1,11 @@
 /**
- * NFS Routes - Phase 5
+ * NFS Routes — Dual-Layer Service Activation
  * 
  * API endpoints for NFS (Network File System) sharing
  * - Create NFS exports
  * - List NFS exports
  * - Remove NFS exports
- * - Test NFS accessibility
+ * - Enable/disable with full sync
  */
 
 const express = require('express');
@@ -33,18 +33,6 @@ const requireAdmin = (req, res, next) => {
 /**
  * POST /nfs/exports
  * Create a new NFS export
- * 
- * Body:
- * {
- *   "name": "export-name",
- *   "path": "/mnt/storage/folder",
- *   "clients": [
- *     {
- *       "ip": "192.168.1.0/24",
- *       "options": "rw,sync,no_subtree_check"
- *     }
- *   ]
- * }
  */
 router.post('/exports', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -52,7 +40,6 @@ router.post('/exports', requireAuth, requireAdmin, async (req, res) => {
 
     logger.info('NFS: Create export request', { name, path, user: req.user.id });
 
-    // Call service
     const result = await NFSService.createShare({
       name,
       path,
@@ -116,150 +103,86 @@ router.get('/exports', requireAuth, async (req, res) => {
 
 /**
  * GET /nfs/available-paths
- * Get available storage paths for creating exports
  */
 router.get('/available-paths', requireAuth, async (req, res) => {
   try {
-    logger.info('NFS: Get available paths request', { user: req.user.id });
-
     const result = await NFSService.getAvailablePaths();
-
-    return res.json({
-      success: true,
-      paths: result.paths || []
-    });
+    return res.json({ success: true, paths: result.paths || [] });
   } catch (err) {
-    logger.error('NFS get available paths error', { error: err.message });
-    return res.json({
-      success: true,
-      paths: []
-    });
+    return res.json({ success: true, paths: [] });
   }
 });
 
 /**
  * DELETE /nfs/exports/:name
- * Remove an NFS export
- * 
- * Params:
- * - name: export name
  */
 router.delete('/exports/:name', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name } = req.params;
 
-    logger.info('NFS: Remove export request', { name, user: req.user.id });
-
-    // Validate export name
     if (!name || typeof name !== 'string' || name.length === 0) {
-      return res.status(400).json({
-        error: 'INVALID_NAME',
-        message: 'Export name is required'
-      });
+      return res.status(400).json({ error: 'INVALID_NAME', message: 'Export name is required' });
     }
 
     const result = await NFSService.removeShare({ name });
 
     if (!result.success) {
-      return res.status(404).json({
-        error: result.error,
-        message: result.message
-      });
+      return res.status(404).json({ error: result.error, message: result.message });
     }
 
-    logger.info('NFS export removed', { name, user: req.user.id });
-
-    return res.json({
-      success: true,
-      message: result.message
-    });
+    return res.json({ success: true, message: result.message });
   } catch (err) {
     logger.error('NFS remove export error', { error: err.message });
-    return res.status(500).json({
-      error: 'SERVICE_ERROR',
-      message: 'Failed to remove NFS export'
-    });
+    return res.status(500).json({ error: 'SERVICE_ERROR', message: 'Failed to remove NFS export' });
   }
 });
 
 /**
  * POST /nfs/test/:name
- * Test NFS export accessibility
- * 
- * Params:
- * - name: export name
  */
 router.post('/test/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
 
-    logger.info('NFS: Test export request', { name, user: req.user.id });
-
     if (!name || typeof name !== 'string') {
-      return res.status(400).json({
-        error: 'INVALID_NAME',
-        message: 'Export name is required'
-      });
+      return res.status(400).json({ error: 'INVALID_NAME', message: 'Export name is required' });
     }
 
     const result = await NFSService.testShare({ name });
 
     if (!result.success) {
-      return res.status(404).json({
-        error: result.error,
-        message: result.message
-      });
+      return res.status(404).json({ error: result.error, message: result.message });
     }
 
-    return res.json({
-      success: true,
-      name: result.name,
-      exported: result.exported,
-      message: result.message
-    });
+    return res.json({ success: true, name: result.name, exported: result.exported, message: result.message });
   } catch (err) {
     logger.error('NFS test export error', { error: err.message });
-    return res.status(500).json({
-      error: 'TEST_ERROR',
-      message: 'Failed to test NFS export'
-    });
+    return res.status(500).json({ error: 'TEST_ERROR', message: 'Failed to test NFS export' });
   }
 });
 
 /**
  * GET /nfs/exports/:name
- * Get details of a specific NFS export
  */
 router.get('/exports/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
 
-    logger.info('NFS: Get export details', { name, user: req.user.id });
-
     const shareCheck = NFSService.validateShareExists(name);
     if (!shareCheck.valid) {
-      return res.status(404).json({
-        error: shareCheck.error,
-        message: shareCheck.message
-      });
+      return res.status(404).json({ error: shareCheck.error, message: shareCheck.message });
     }
 
-    return res.json({
-      success: true,
-      export: shareCheck.share
-    });
+    return res.json({ success: true, export: shareCheck.share });
   } catch (err) {
     logger.error('NFS get export error', { error: err.message });
-    return res.status(500).json({
-      error: 'SERVICE_ERROR',
-      message: 'Failed to get NFS export details'
-    });
+    return res.status(500).json({ error: 'SERVICE_ERROR', message: 'Failed to get NFS export details' });
   }
 });
 
 /**
  * GET /nfs/status
- * Get NFS service status
+ * Get NFS service status (enhanced with global state + detected subnet)
  */
 router.get('/status', requireAuth, async (req, res) => {
   try {
@@ -269,20 +192,21 @@ router.get('/status', requireAuth, async (req, res) => {
       success: true,
       service: 'nfs-server',
       active: status.active,
-      status: status.active ? 'running' : 'stopped'
+      enabled: status.enabled,
+      running: status.running,
+      installed: status.installed,
+      status: status.active ? 'running' : 'stopped',
+      detectedSubnet: status.detectedSubnet
     });
   } catch (err) {
     logger.error('NFS status check error', { error: err.message });
-    return res.status(500).json({
-      error: 'STATUS_ERROR',
-      message: 'Failed to get NFS service status'
-    });
+    return res.status(500).json({ error: 'STATUS_ERROR', message: 'Failed to get NFS service status' });
   }
 });
 
 /**
  * POST /nfs/enable
- * Enable NFS service
+ * Enable NFS service — syncs all exports, opens firewall
  */
 router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -291,31 +215,28 @@ router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
     const result = await NFSService.enableService();
 
     if (!result.success) {
-      return res.status(400).json({
-        error: result.error,
-        message: result.message
-      });
+      return res.status(400).json({ error: result.error, message: result.message });
     }
 
-    logger.info('NFS service enabled', { user: req.user.id });
+    const status = await NFSService.getServiceStatus();
 
     return res.json({
       success: true,
       message: result.message,
-      active: true
+      active: status.active,
+      enabled: status.enabled,
+      running: status.running,
+      detectedSubnet: status.detectedSubnet
     });
   } catch (err) {
     logger.error('NFS enable service error', { error: err.message });
-    return res.status(500).json({
-      error: 'SERVICE_ERROR',
-      message: 'Failed to enable NFS service'
-    });
+    return res.status(500).json({ error: 'SERVICE_ERROR', message: 'Failed to enable NFS service' });
   }
 });
 
 /**
  * POST /nfs/disable
- * Disable NFS service
+ * Disable NFS service — all exports become inaccessible
  */
 router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -324,31 +245,24 @@ router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
     const result = await NFSService.disableService();
 
     if (!result.success) {
-      return res.status(400).json({
-        error: result.error,
-        message: result.message
-      });
+      return res.status(400).json({ error: result.error, message: result.message });
     }
-
-    logger.info('NFS service disabled', { user: req.user.id });
 
     return res.json({
       success: true,
       message: result.message,
-      active: false
+      active: false,
+      enabled: false,
+      running: false
     });
   } catch (err) {
     logger.error('NFS disable service error', { error: err.message });
-    return res.status(500).json({
-      error: 'SERVICE_ERROR',
-      message: 'Failed to disable NFS service'
-    });
+    return res.status(500).json({ error: 'SERVICE_ERROR', message: 'Failed to disable NFS service' });
   }
 });
 
 /**
- * POST /api/nfs/attach
- * Attach a shared folder to NFS
+ * POST /api/nfs/attach (legacy compat)
  */
 router.post('/attach', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -356,26 +270,19 @@ router.post('/attach', requireAuth, requireAdmin, async (req, res) => {
     const accessService = require('../../lib/access.service');
     
     if (!name || !path) {
-      return res.status(400).json({
-        error: 'INVALID_INPUT',
-        message: 'Name and path are required'
-      });
+      return res.status(400).json({ error: 'INVALID_INPUT', message: 'Name and path are required' });
     }
     
     const result = await accessService.attachNfsShare(name, path);
-    res.ok(result);
+    return res.json({ success: true, ...result });
   } catch (err) {
     logger.error('NFS attach error', { error: err.message });
-    return res.status(400).json({
-      error: 'ATTACH_FAILED',
-      message: err.message
-    });
+    return res.status(400).json({ error: 'ATTACH_FAILED', message: err.message });
   }
 });
 
 /**
- * DELETE /api/nfs/attach/:name
- * Detach a shared folder from NFS
+ * DELETE /api/nfs/attach/:name (legacy compat)
  */
 router.delete('/attach/:name', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -383,13 +290,10 @@ router.delete('/attach/:name', requireAuth, requireAdmin, async (req, res) => {
     const accessService = require('../../lib/access.service');
     
     const result = await accessService.detachNfsShare(name);
-    res.ok(result);
+    return res.json({ success: true, ...result });
   } catch (err) {
     logger.error('NFS detach error', { error: err.message });
-    return res.status(400).json({
-      error: 'DETACH_FAILED',
-      message: err.message
-    });
+    return res.status(400).json({ error: 'DETACH_FAILED', message: err.message });
   }
 });
 
@@ -398,10 +302,7 @@ router.delete('/attach/:name', requireAuth, requireAdmin, async (req, res) => {
  */
 router.use((err, req, res, next) => {
   logger.error('NFS route error', { error: err.message, method: req.method, path: req.path });
-  return res.status(500).json({
-    error: 'INTERNAL_ERROR',
-    message: 'An internal error occurred'
-  });
+  return res.status(500).json({ error: 'INTERNAL_ERROR', message: 'An internal error occurred' });
 });
 
 module.exports = router;

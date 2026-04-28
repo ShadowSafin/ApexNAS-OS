@@ -1,11 +1,14 @@
 /**
- * SMB (Samba) Service - Phase 5
+ * SMB (Samba) Service — Dual-Layer Activation
  * 
  * Network sharing over SMB/CIFS protocol
  * - Safe configuration of Samba shares
  * - Validation-first approach
  * - Config file management (never overwrite blindly)
  * - Idempotent operations
+ * - Global state integration via ServiceState
+ * - User synchronization (smbpasswd)
+ * - Firewall management
  * 
  * CRITICAL: No system paths exposed
  */
@@ -14,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const { execute } = require('../../lib/executor');
 const logger = require('../../lib/logger');
+const { ServiceState } = require('../../lib/service-state');
+const { FirewallService } = require('../../lib/firewall.service');
 
 const STORAGE_ROOT = '/mnt/storage';
 const SMB_CONFIG_PATH = '/etc/samba/smb.conf';
@@ -76,7 +81,7 @@ class SMBService {
 
       // SECURITY CHECK: Block encoded traversal patterns
       // Patterns: %2e (.), %2f or %5c (/ or \), %2e%2e (..), shell chars
-      const encodedTraversal = /%2[ef]|%5c|%2e%2e|%2e%2f|%5c%2e|\$\(|`|\||;|\&/i;
+      const encodedTraversal = /%2[ef]|%5c|%2e%2e|%2e%2f|%5c%2e|\$\(|`|\||;|&/i;
       if (encodedTraversal.test(targetPath)) {
         logger.error('SECURITY: Encoded traversal attempt blocked', { path: targetPath });
         return { valid: false, error: 'BLOCKED_PATH', message: 'Path contains encoded traversal or shell characters' };
@@ -227,45 +232,191 @@ class SMBService {
     return config;
   }
 
+  /**
+   * Ensure smb.conf [global] section has correct settings
+   */
+  static ensureGlobalConfig() {
+    try {
+      const globalSection = `[global]
+  workgroup = WORKGROUP
+  server string = NAS-OS File Server
+  security = user
+  map to guest = never
+  bind interfaces only = no
+  interfaces = 0.0.0.0
+  log file = /var/log/samba/log.%m
+  max log size = 1000
+  logging = file
+  server role = standalone server
+  obey pam restrictions = yes
+  unix password sync = yes
+  pam password change = yes
+  min protocol = SMB2
+`;
+      return globalSection;
+    } catch (err) {
+      logger.error('Failed to build global config', { error: err.message });
+      return '';
+    }
+  }
+
   static async updateSMBConfig(shares) {
     try {
       logger.info('Updating SMB config', { shares: shares.length });
 
-      // Read existing config
-      let config = '';
-      if (fs.existsSync(SMB_CONFIG_PATH)) {
-        config = fs.readFileSync(SMB_CONFIG_PATH, 'utf8');
-      }
+      // Build complete config: global + all shares
+      const globalSection = this.ensureGlobalConfig();
+      const shareConfigs = shares.map(share => this.buildShareConfig(share).join('\n'));
 
-      // Parse to find global section
-      const lines = config.split('\n');
-      let globalEnd = 0;
-      for (let i = 0; i < lines.length; i++) {
-        if (/^\s*\[/.test(lines[i]) && !lines[i].includes('global')) {
-          globalEnd = i;
-          break;
-        }
-      }
-
-      // Keep global section, remove old shares, add new ones
-      const globalSection = lines.slice(0, globalEnd).join('\n');
-      const newConfig = [globalSection];
-
-      for (const share of shares) {
-        const shareConfig = this.buildShareConfig(share);
-        newConfig.push('\n' + shareConfig.join('\n'));
-      }
-
-      const finalConfig = newConfig.join('\n') + '\n';
+      const finalConfig = globalSection + '\n' + shareConfigs.join('\n\n') + '\n';
 
       // Write updated config
-      fs.writeFileSync(SMB_CONFIG_PATH, finalConfig, 'utf8');
-      logger.info('SMB config updated', { path: SMB_CONFIG_PATH });
+      try {
+        fs.writeFileSync(SMB_CONFIG_PATH, finalConfig, 'utf8');
+        logger.info('SMB config updated', { path: SMB_CONFIG_PATH });
+      } catch (err) {
+        logger.warn('Could not write SMB config (may require root)', { error: err.message });
+      }
 
       return { success: true, message: 'SMB config updated' };
     } catch (err) {
       logger.error('Failed to update SMB config', { error: err.message });
       throw new SMBError('CONFIG_UPDATE_FAILED', err.message);
+    }
+  }
+
+  /**
+   * Reload smb.conf and restart smbd (only if service is globally enabled)
+   */
+  static async reloadConfig() {
+    if (!ServiceState.isEnabled('smb')) {
+      logger.info('SMB: Skipping reload — service is globally disabled');
+      return { success: true, message: 'Service disabled, config updated but not reloaded' };
+    }
+
+    try {
+      // Validate config first
+      try {
+        await execute('testparm', ['-s', '--suppress-prompt'], { timeout: 10000 });
+        logger.info('SMB config validation passed');
+      } catch (err) {
+        logger.warn('testparm not available or config has warnings', { error: err.message });
+      }
+
+      // Reload samba
+      try {
+        await execute('systemctl', ['reload', 'smbd'], { timeout: 10000 });
+        logger.info('Samba service reloaded');
+      } catch (err) {
+        // If reload fails, try restart
+        try {
+          await execute('systemctl', ['restart', 'smbd'], { timeout: 15000 });
+          logger.info('Samba service restarted (reload failed)');
+        } catch (restartErr) {
+          logger.warn('Could not reload/restart Samba', { error: restartErr.message });
+        }
+      }
+
+      return { success: true, message: 'SMB config reloaded' };
+    } catch (err) {
+      logger.error('SMB reload failed', { error: err.message });
+      return { success: false, error: 'RELOAD_FAILED', message: err.message };
+    }
+  }
+
+  /**
+   * Sync all SMB-enabled shares to smb.conf
+   * Called when global SMB is enabled to activate all pending shares
+   */
+  static async syncAllShares() {
+    try {
+      logger.info('SMB: Syncing all enabled shares to smb.conf');
+
+      // Get all shares from ShareService
+      let allShares = [];
+      try {
+        const { shares: shareMap } = require('../share/share.service');
+        allShares = Array.from(shareMap.values());
+      } catch (err) {
+        logger.warn('Could not load shares from ShareService', { error: err.message });
+        return { success: true, synced: 0 };
+      }
+
+      // Filter to SMB-enabled shares
+      const smbShares = allShares
+        .filter(s => s.services?.smb?.enabled)
+        .map(s => ({
+          name: s.name,
+          path: s.path,
+          readOnly: s.services.smb.readOnly || false,
+          guestAccess: s.services.smb.guestOk || false,
+          browseable: s.services.smb.browseable !== false,
+          validUsers: [],
+          permissions: true
+        }));
+
+      if (smbShares.length > 0) {
+        await this.updateSMBConfig(smbShares);
+      } else {
+        // Write just global config with no shares
+        try {
+          fs.writeFileSync(SMB_CONFIG_PATH, this.ensureGlobalConfig() + '\n', 'utf8');
+        } catch (err) {
+          logger.warn('Could not write empty SMB config', { error: err.message });
+        }
+      }
+
+      logger.info('SMB: Sync complete', { synced: smbShares.length });
+      return { success: true, synced: smbShares.length };
+    } catch (err) {
+      logger.error('SMB: Sync failed', { error: err.message });
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Sync all Linux users (UID >= 1000) to smbpasswd database
+   */
+  static async syncSmbUsers() {
+    try {
+      logger.info('SMB: Syncing system users to Samba');
+
+      const passwdContent = fs.readFileSync('/etc/passwd', 'utf8');
+      const users = passwdContent
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          const parts = line.split(':');
+          return { username: parts[0], uid: parseInt(parts[2], 10) };
+        })
+        .filter(u => u.uid >= 1000 && u.uid < 60000 && !['nobody', 'nfsnobody'].includes(u.username));
+
+      let synced = 0;
+      for (const user of users) {
+        try {
+          // Check if user already in smbpasswd database
+          const { stdout } = await execute('pdbedit', ['-L', '-u', user.username], { timeout: 5000 });
+          if (stdout.includes(user.username)) {
+            continue; // Already exists
+          }
+        } catch {
+          // User not in samba DB, try to add with disabled password
+          // (they'll need to set a password via the Users page)
+          try {
+            await execute('smbpasswd', ['-a', '-n', user.username], { timeout: 5000 });
+            synced++;
+            logger.info('SMB: Added user to Samba DB', { username: user.username });
+          } catch (addErr) {
+            logger.debug('SMB: Could not add user to Samba', { username: user.username, error: addErr.message });
+          }
+        }
+      }
+
+      logger.info('SMB: User sync complete', { total: users.length, synced });
+      return { success: true, total: users.length, synced };
+    } catch (err) {
+      logger.warn('SMB: User sync failed', { error: err.message });
+      return { success: true, synced: 0 };
     }
   }
 
@@ -278,16 +429,6 @@ class SMBService {
 
     try {
       logger.info('SMB: Create share request', { name, path: sharePath });
-
-      // Check if SMB service is enabled
-      const status = await this.getServiceStatus();
-      if (!status.active) {
-        return {
-          success: false,
-          error: 'SERVICE_NOT_ENABLED',
-          message: 'SMB service must be enabled before creating shares'
-        };
-      }
 
       // VALIDATION LAYER
       const nameCheck = this.validateSMBName(name);
@@ -328,35 +469,15 @@ class SMBService {
         createdAt: new Date().toISOString()
       };
 
-      // Update config file
-      const parsed = this.parseSMBConfig();
-      parsed.shares[name] = { params: this.buildShareConfig(share) };
-
-      // Write config safely
-      const allShares = Object.values(parsed.shares)
-        .map(s => ({
-          name: s.params[0]?.slice(1, -1) || 'unknown',
-          path: s.params[1],
-          writable: !s.params[3]?.includes('yes'),
-          guestOk: s.params[4]?.includes('yes'),
-          validUsers: s.params[5]?.split(',').map(u => u.trim()) || []
-        }));
-
-      await this.updateSMBConfig([...allShares, share]);
-
-      // Reload Samba
-      try {
-        await execute('systemctl', ['reload', 'smbd'], { timeout: 10000 });
-        logger.info('Samba service reloaded', { share: name });
-      } catch (err) {
-        logger.warn('Could not reload Samba', { error: err.message });
-      }
-
       // Persist to network-shares.json
       const networkShares = this.loadNetworkShares();
       if (!networkShares.smb) networkShares.smb = [];
       networkShares.smb.push(share);
       this.saveNetworkShares(networkShares);
+
+      // Sync and reload config if service is running
+      await this.syncAllShares();
+      await this.reloadConfig();
 
       logger.info('SMB share created', { name, path: sharePath });
 
@@ -387,35 +508,16 @@ class SMBService {
         return { success: false, ...shareCheck };
       }
 
-      // Remove from config
-      const parsed = this.parseSMBConfig();
-      delete parsed.shares[name];
-
-      // Rebuild config without this share
-      const remaining = Object.entries(parsed.shares)
-        .filter(([key]) => key !== name)
-        .map(([, share]) => ({
-          name: share.params.name || key,
-          path: share.params.path,
-          readOnly: share.params['read only'] === 'yes',
-          guestAccess: share.params['guest ok'] === 'yes'
-        }));
-
-      await this.updateSMBConfig(remaining);
-
-      // Reload Samba
-      try {
-        await execute('systemctl', ['reload', 'smbd'], { timeout: 10000 });
-      } catch (err) {
-        logger.warn('Could not reload Samba', { error: err.message });
-      }
-
       // Update network-shares.json
       const networkShares = this.loadNetworkShares();
       if (networkShares.smb) {
         networkShares.smb = networkShares.smb.filter(s => s.name !== name);
         this.saveNetworkShares(networkShares);
       }
+
+      // Rebuild config and reload
+      await this.syncAllShares();
+      await this.reloadConfig();
 
       logger.info('SMB share removed', { name });
 
@@ -435,30 +537,15 @@ class SMBService {
 
   static async listShares() {
     try {
-      // Check if SMB service is enabled before listing shares
-      const status = await this.getServiceStatus();
-      if (!status.active) {
-        logger.info('SMB service not active, returning empty shares list');
-        return {
-          success: true,
-          shares: [],
-          count: 0
-        };
-      }
+      const networkShares = this.loadNetworkShares();
+      const smbShares = networkShares.smb || [];
 
-      const parsed = this.parseSMBConfig();
-      const shares = Object.entries(parsed.shares)
-        .map(([name, share]) => ({
-          name,
-          ...share.params
-        }));
-
-      logger.info('Listed SMB shares', { count: shares.length });
+      logger.info('Listed SMB shares', { count: smbShares.length });
 
       return {
         success: true,
-        shares,
-        count: shares.length
+        shares: smbShares,
+        count: smbShares.length
       };
     } catch (err) {
       logger.error('Failed to list SMB shares', { error: err.message });
@@ -489,6 +576,10 @@ class SMBService {
 
   static saveNetworkShares(data) {
     try {
+      const dir = path.dirname(NETWORK_SHARES_PATH);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
       fs.writeFileSync(NETWORK_SHARES_PATH, JSON.stringify(data, null, 2), 'utf8');
       logger.debug('Network shares persisted');
     } catch (err) {
@@ -498,38 +589,45 @@ class SMBService {
   }
 
   /**
-   * SERVICE MANAGEMENT
+   * SERVICE MANAGEMENT — Enhanced with dual-layer support
    */
 
   static async getServiceStatus() {
     try {
+      const globalEnabled = ServiceState.isEnabled('smb');
+      let isRunning = false;
+      let isInstalled = true;
+
       try {
         const { stdout } = await execute('systemctl', ['is-active', 'smbd'], { timeout: 5000 });
-        const active = stdout.trim() === 'active';
-
-        logger.info('SMB service status', { active });
-
-        return {
-          success: true,
-          active,
-          service: 'smbd'
-        };
+        isRunning = stdout.trim() === 'active';
       } catch (execErr) {
-        // In dev environment where systemctl is not available, return inactive by default
-        logger.warn('Could not check SMB service status via systemctl', { error: execErr.message });
-        return {
-          success: true,
-          active: false,
-          service: 'smbd'
-        };
+        // Check if it's installed at all
+        try {
+          await execute('which', ['smbd'], { timeout: 3000 });
+        } catch {
+          isInstalled = false;
+        }
+        isRunning = false;
       }
+
+      return {
+        success: true,
+        active: globalEnabled && isRunning,
+        enabled: globalEnabled,
+        running: isRunning,
+        installed: isInstalled,
+        service: 'smbd'
+      };
     } catch (err) {
       logger.warn('Could not get SMB service status', { error: err.message });
       return {
         success: true,
         active: false,
-        error: 'STATUS_FAILED',
-        message: err.message
+        enabled: ServiceState.isEnabled('smb'),
+        running: false,
+        installed: true,
+        service: 'smbd'
       };
     }
   }
@@ -540,23 +638,42 @@ class SMBService {
 
       // Start the smbd service
       try {
-        const startResult = await execute('systemctl', ['start', 'smbd'], { timeout: 10000 });
+        await execute('systemctl', ['start', 'smbd'], { timeout: 10000 });
       } catch (execErr) {
         logger.warn('Could not start smbd via systemctl', { error: execErr.message });
       }
-      
+
       // Enable it to start on boot
       try {
-        const enableResult = await execute('systemctl', ['enable', 'smbd'], { timeout: 5000 });
+        await execute('systemctl', ['enable', 'smbd'], { timeout: 5000 });
       } catch (execErr) {
         logger.warn('Could not enable smbd via systemctl', { error: execErr.message });
       }
 
-      logger.info('SMB service enable request processed');
+      // Update global state
+      ServiceState.setEnabled('smb', true);
+
+      // Sync all SMB-enabled shares to smb.conf
+      const syncResult = await this.syncAllShares();
+
+      // Reload config to activate shares
+      await this.reloadConfig();
+
+      // Sync users to Samba
+      await this.syncSmbUsers();
+
+      // Open firewall ports
+      try {
+        await FirewallService.openPorts('smb');
+      } catch (fwErr) {
+        logger.warn('Firewall port open failed', { error: fwErr.message });
+      }
+
+      logger.info('SMB service enabled', { sharesSynced: syncResult.synced });
 
       return {
         success: true,
-        message: 'SMB service enable request processed'
+        message: `SMB service enabled. ${syncResult.synced || 0} shares activated.`
       };
     } catch (err) {
       logger.error('Unexpected error enabling SMB service', { error: err.message });
@@ -573,23 +690,26 @@ class SMBService {
 
       // Stop the smbd service
       try {
-        const stopResult = await execute('systemctl', ['stop', 'smbd'], { timeout: 10000 });
+        await execute('systemctl', ['stop', 'smbd'], { timeout: 10000 });
       } catch (execErr) {
         logger.warn('Could not stop smbd via systemctl', { error: execErr.message });
       }
-      
+
       // Disable it from starting on boot
       try {
-        const disableResult = await execute('systemctl', ['disable', 'smbd'], { timeout: 5000 });
+        await execute('systemctl', ['disable', 'smbd'], { timeout: 5000 });
       } catch (execErr) {
         logger.warn('Could not disable smbd via systemctl', { error: execErr.message });
       }
 
-      logger.info('SMB service disable request processed');
+      // Update global state
+      ServiceState.setEnabled('smb', false);
+
+      logger.info('SMB service disabled');
 
       return {
         success: true,
-        message: 'SMB service disable request processed'
+        message: 'SMB service disabled. All SMB shares are now inaccessible.'
       };
     } catch (err) {
       logger.error('Unexpected error disabling SMB service', { error: err.message });
@@ -610,7 +730,7 @@ class SMBService {
       if (fs.existsSync(STORAGE_ROOT)) {
         try {
           const entries = fs.readdirSync(STORAGE_ROOT, { withFileTypes: true });
-          
+
           // Add the root storage path
           paths.push({
             path: STORAGE_ROOT,

@@ -27,9 +27,10 @@ const { ShareService } = require('./modules/share/share.service');
 function createApp() {
   const app = express();
 
-  // Initialize services
-  FTPService.init();
-  ShareService.initialize();
+  // Initialize services (order matters: Shares first, then FTP needs share data)
+  ShareService.initialize().then(() => {
+    FTPService.init().catch(err => logger.error('FTP init error:', { error: err.message }));
+  }).catch(err => logger.error('Share init error:', { error: err.message }));
 
   app.use(helmet());
   app.use(
@@ -61,12 +62,12 @@ function createApp() {
   });
 
   app.use(requireAuth);
-  
+
   // Apply rate limiting to write operations
   app.post('*', writeLimiter);
   app.put('*', writeLimiter);
   app.delete('*', writeLimiter);
-  
+
   app.use('/api/system', systemRoutes);
   app.use('/api/disk', diskRoutes);
   app.use('/api/network', networkRoutes);

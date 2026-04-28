@@ -59,10 +59,32 @@ export default function Filesystems() {
       const devices = [];
       for (const disk of disks) {
         if (disk.isSystem) continue;
-        for (const part of (disk.children || [])) {
-          // Allow formatting any unmounted partition (even if it already has an fstype)
-          if (!part.mountpoint) {
-            devices.push({ device: part.device || `/dev/${part.name}`, name: part.name, size: part.sizeFormatted || formatBytes(part.size) });
+
+        const children = disk.children || [];
+
+        if (children.length === 0) {
+          // Whole disk with no partition table — allow formatting the raw disk
+          if (!disk.mountpoint) {
+            devices.push({
+              device: disk.device || `/dev/${disk.name}`,
+              name: disk.name,
+              size: disk.sizeFormatted || formatBytes(disk.size),
+              fstype: disk.fstype || null,
+              label: `${disk.device || `/dev/${disk.name}`} (whole disk, ${disk.sizeFormatted || formatBytes(disk.size)})`
+            });
+          }
+        } else {
+          // Show any partition that is NOT currently mounted
+          for (const part of children) {
+            if (!part.mountpoint) {
+              devices.push({
+                device: part.device || `/dev/${part.name}`,
+                name: part.name,
+                size: part.sizeFormatted || formatBytes(part.size),
+                fstype: part.fstype || null,
+                label: `${part.device || `/dev/${part.name}`} (${part.fstype || 'unformatted'}, ${part.sizeFormatted || formatBytes(part.size)})`
+              });
+            }
           }
         }
       }
@@ -216,11 +238,11 @@ export default function Filesystems() {
               </GlassPanel>
             )}
 
+            {/* Filesystem list */}
             {filesystems.length > 0 && filesystems.map((fs, i) => {
               const pctRaw = typeof fs.usePercent === 'string' ? parseFloat(fs.usePercent) : (fs.size > 0 ? (fs.used / fs.size * 100) : 0);
               const pct = Math.min(pctRaw, 100).toFixed(1);
-              // Allow unmounting anything except core OS paths
-              const canUnmount = !['/', '/boot/efi'].includes(fs.mountpoint);
+              const isStorageMount = (fs.mountpoint || '').startsWith('/mnt/storage');
 
               return (
                 <GlassPanel key={fs.mountpoint || fs.device} variant="medium" padding="md"
@@ -247,7 +269,7 @@ export default function Filesystems() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                       <StatusIndicator status="online" label="Mounted" />
-                      {canUnmount && (
+                      {(isStorageMount || (fs.mountpoint || '').startsWith('/media/')) && (
                         <button className="btn btn--secondary btn--xs" onClick={() => handleUnmount(fs.mountpoint)}
                           disabled={actionLoading}>
                           Unmount
@@ -296,12 +318,12 @@ export default function Filesystems() {
                 <label className="form-label">Device</label>
                 {availableDevices.length === 0 ? (
                   <div style={{ padding: 'var(--space-3)', color: '#F59E0B', fontSize: 'var(--font-size-sm)', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 'var(--radius-sm)' }}>
-                    No unformatted partitions available. Create a partition first.
+                  No unmounted partitions or disks available. Partition a disk first from the Storage page.
                   </div>
                 ) : (
                   <select className="form-input" value={createDevice} onChange={e => setCreateDevice(e.target.value)}>
                     {availableDevices.map(d => (
-                      <option key={d.device} value={d.device}>{d.device} ({d.size})</option>
+                      <option key={d.device} value={d.device}>{d.label || `${d.device} (${d.size})`}</option>
                     ))}
                   </select>
                 )}

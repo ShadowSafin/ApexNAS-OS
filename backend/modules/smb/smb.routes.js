@@ -1,11 +1,12 @@
 /**
- * SMB Routes - Phase 5
+ * SMB Routes — Dual-Layer Service Activation
  * 
  * API endpoints for Samba/SMB network sharing
  * - Create SMB shares
  * - List SMB shares
  * - Remove SMB shares
  * - Test SMB accessibility
+ * - Enable/disable with full sync
  */
 
 const express = require('express');
@@ -33,17 +34,6 @@ const requireAdmin = (req, res, next) => {
 /**
  * POST /smb/shares
  * Create a new SMB share
- * 
- * Body:
- * {
- *   "name": "share-name",
- *   "path": "/mnt/storage/folder",
- *   "browseable": true,
- *   "writable": false,
- *   "guestOk": false,
- *   "validUsers": ["user1", "user2"],
- *   "comment": "Share description"
- * }
  */
 router.post('/shares', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -51,7 +41,6 @@ router.post('/shares', requireAuth, requireAdmin, async (req, res) => {
 
     logger.info('SMB: Create share request', { name, path, user: req.user.id });
 
-    // Call service
     const result = await SMBService.createShare({
       name,
       path,
@@ -143,9 +132,6 @@ router.get('/available-paths', requireAuth, async (req, res) => {
 /**
  * DELETE /smb/shares/:name
  * Remove an SMB share
- * 
- * Params:
- * - name: share name
  */
 router.delete('/shares/:name', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -153,7 +139,6 @@ router.delete('/shares/:name', requireAuth, requireAdmin, async (req, res) => {
 
     logger.info('SMB: Remove share request', { name, user: req.user.id });
 
-    // Validate share name
     if (!name || typeof name !== 'string' || name.length === 0) {
       return res.status(400).json({
         error: 'INVALID_NAME',
@@ -188,9 +173,6 @@ router.delete('/shares/:name', requireAuth, requireAdmin, async (req, res) => {
 /**
  * POST /smb/test/:name
  * Test SMB share accessibility
- * 
- * Params:
- * - name: share name
  */
 router.post('/test/:name', requireAuth, async (req, res) => {
   try {
@@ -231,7 +213,7 @@ router.post('/test/:name', requireAuth, async (req, res) => {
 
 /**
  * GET /smb/status
- * Get SMB service status
+ * Get SMB service status (enhanced with global state)
  */
 router.get('/status', requireAuth, async (req, res) => {
   try {
@@ -241,6 +223,9 @@ router.get('/status', requireAuth, async (req, res) => {
       success: true,
       service: 'smbd',
       active: status.active,
+      enabled: status.enabled,
+      running: status.running,
+      installed: status.installed,
       status: status.active ? 'running' : 'stopped'
     });
   } catch (err) {
@@ -254,7 +239,7 @@ router.get('/status', requireAuth, async (req, res) => {
 
 /**
  * POST /smb/enable
- * Enable SMB service
+ * Enable SMB service — syncs all shares, reloads config, opens firewall
  */
 router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -269,12 +254,17 @@ router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
+    // Get updated status
+    const status = await SMBService.getServiceStatus();
+
     logger.info('SMB service enabled', { user: req.user.id });
 
     return res.json({
       success: true,
       message: result.message,
-      active: true
+      active: status.active,
+      enabled: status.enabled,
+      running: status.running
     });
   } catch (err) {
     logger.error('SMB enable service error', { error: err.message });
@@ -287,7 +277,7 @@ router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * POST /smb/disable
- * Disable SMB service
+ * Disable SMB service — all SMB shares become inaccessible
  */
 router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -307,7 +297,9 @@ router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
     return res.json({
       success: true,
       message: result.message,
-      active: false
+      active: false,
+      enabled: false,
+      running: false
     });
   } catch (err) {
     logger.error('SMB disable service error', { error: err.message });
@@ -320,7 +312,7 @@ router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * POST /api/smb/attach
- * Attach a shared folder to SMB
+ * Attach a shared folder to SMB (legacy compat)
  */
 router.post('/attach', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -335,7 +327,7 @@ router.post('/attach', requireAuth, requireAdmin, async (req, res) => {
     }
     
     const result = await accessService.attachSmbShare(name, path);
-    res.ok(result);
+    return res.json({ success: true, ...result });
   } catch (err) {
     logger.error('SMB attach error', { error: err.message });
     return res.status(400).json({
@@ -347,7 +339,7 @@ router.post('/attach', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * DELETE /api/smb/attach/:name
- * Detach a shared folder from SMB
+ * Detach a shared folder from SMB (legacy compat)
  */
 router.delete('/attach/:name', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -355,7 +347,7 @@ router.delete('/attach/:name', requireAuth, requireAdmin, async (req, res) => {
     const accessService = require('../../lib/access.service');
     
     const result = await accessService.detachSmbShare(name);
-    res.ok(result);
+    return res.json({ success: true, ...result });
   } catch (err) {
     logger.error('SMB detach error', { error: err.message });
     return res.status(400).json({

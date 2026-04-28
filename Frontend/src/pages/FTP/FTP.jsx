@@ -3,34 +3,32 @@ import TopBar from '../../components/TopBar/TopBar';
 import GlassPanel from '../../components/GlassPanel/GlassPanel';
 import StatusIndicator from '../../components/StatusIndicator/StatusIndicator';
 import Toggle from '../../components/Toggle/Toggle';
-import apiClient from '../../services/api';
+import { useShareStore } from '../../stores';
 import './FTP.css';
 
 export default function FTP() {
-  const [ftpStatus, setFtpStatus] = useState(null);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState({
-    username: '',
-    password: '',
-    homeDir: '/mnt/storage/ftp'
-  });
   const [submitting, setSubmitting] = useState(false);
+
+  const {
+    shares,
+    ftpStatus,
+    fetchFtpStatus,
+    fetchShares,
+    enableFtpService,
+    disableFtpService
+  } = useShareStore();
 
   // Load FTP data on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setError(null);
-        const [statusRes, usersRes] = await Promise.all([
-          apiClient.get('/ftp/status'),
-          apiClient.get('/ftp/users')
+        await Promise.all([
+          fetchFtpStatus(),
+          fetchShares()
         ]);
-        
-        setFtpStatus(statusRes.data?.data || statusRes.data);
-        setUsers(Array.isArray(usersRes.data?.data) ? usersRes.data.data : []);
       } catch (err) {
         setError(err.response?.data?.message || err.message);
       } finally {
@@ -39,24 +37,29 @@ export default function FTP() {
     };
 
     loadData();
-  }, []);
+  }, [fetchFtpStatus, fetchShares]);
 
   const handleToggleFTP = async () => {
     setSubmitting(true);
     try {
       setError(null);
+      const ftpShareCount = shares?.filter(s => s.services?.ftp?.enabled).length || 0;
+
       if (ftpStatus?.enabled) {
-        await apiClient.post('/ftp/disable');
+        if (ftpShareCount > 0 && !window.confirm(
+          `Disabling FTP will make ${ftpShareCount} share${ftpShareCount !== 1 ? 's' : ''} inaccessible via FTP. Continue?`
+        )) {
+          setSubmitting(false);
+          return;
+        }
+        await disableFtpService();
       } else {
-        await apiClient.post('/ftp/enable', {
+        await enableFtpService({
           port: 21,
-          passivePortMin: 6000,
-          passivePortMax: 6100
+          passivePortMin: 30000,
+          passivePortMax: 31000
         });
       }
-      // Refresh status
-      const statusRes = await apiClient.get('/ftp/status');
-      setFtpStatus(statusRes.data?.data || statusRes.data);
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     } finally {
@@ -64,44 +67,8 @@ export default function FTP() {
     }
   };
 
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      setError(null);
-      await apiClient.post('/ftp/users', {
-        username: newUser.username,
-        password: newUser.password,
-        homeDir: newUser.homeDir
-      });
-      setNewUser({ username: '', password: '', homeDir: '/mnt/storage/ftp' });
-      setShowAddUser(false);
-      // Refresh users list
-      const usersRes = await apiClient.get('/ftp/users');
-      setUsers(Array.isArray(usersRes.data?.data) ? usersRes.data.data : []);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleRemoveUser = async (username) => {
-    if (!window.confirm(`Remove FTP user "${username}"?`)) return;
-
-    setSubmitting(true);
-    try {
-      setError(null);
-      await apiClient.delete(`/ftp/users/${username}`);
-      // Refresh users list
-      const usersRes = await apiClient.get('/ftp/users');
-      setUsers(Array.isArray(usersRes.data?.data) ? usersRes.data.data : []);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const ftpShareCount = shares?.filter(s => s.services?.ftp?.enabled).length || 0;
+  const systemUsers = ftpStatus?.systemUsers || [];
 
   if (loading) {
     return (
@@ -165,122 +132,93 @@ export default function FTP() {
               <div className="info-row">
                 <span className="info-row__label">Passive Port Range</span>
                 <span className="info-row__value">
-                  {ftpStatus?.passivePortMin || 6000}-{ftpStatus?.passivePortMax || 6100}
+                  {ftpStatus?.passivePortMin || 30000}-{ftpStatus?.passivePortMax || 31000}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">FTP Shares</span>
+                <span className="info-row__value">
+                  <span className={ftpShareCount > 0 && ftpStatus?.enabled ? 'share-count share-count--active' : 'share-count'}>
+                    {ftpShareCount} share{ftpShareCount !== 1 ? 's' : ''}
+                  </span>
+                  {ftpShareCount > 0 && !ftpStatus?.enabled && (
+                    <span className="share-count-hint"> (will activate when enabled)</span>
+                  )}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">Authentication</span>
+                <span className="info-row__value">Linux System Users (PAM)</span>
+              </div>
+              <div className="info-row">
+                <span className="info-row__label">Chroot</span>
+                <span className="info-row__value" style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+                  /mnt/storage
                 </span>
               </div>
             </GlassPanel>
           </section>
 
-          {/* FTP Users Section */}
+          {/* FTP Users Section — Unified Linux Users */}
           <section className="section animate-fade-in-up stagger-2">
             <div className="section__header">
               <div>
                 <h2 className="section__title">FTP Users</h2>
-                <p className="section__subtitle">{users.length} user{users.length !== 1 ? 's' : ''}</p>
+                <p className="section__subtitle">
+                  {systemUsers.length} system user{systemUsers.length !== 1 ? 's' : ''} with FTP access
+                </p>
               </div>
-              {ftpStatus?.enabled && (
-                <button 
-                  className="btn btn--primary"
-                  onClick={() => setShowAddUser(!showAddUser)}
-                >
-                  {showAddUser ? '✕ Cancel' : '+ Add User'}
-                </button>
-              )}
             </div>
 
-            {showAddUser && ftpStatus?.enabled && (
-              <GlassPanel variant="medium" padding="lg">
-                <form onSubmit={handleAddUser} className="form-card">
-                  <div className="form-group">
-                    <label htmlFor="username" className="form-label">Username</label>
-                    <input
-                      id="username"
-                      type="text"
-                      className="form-input"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                      required
-                      disabled={submitting}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="password" className="form-label">Password</label>
-                    <input
-                      id="password"
-                      type="password"
-                      className="form-input"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      required
-                      disabled={submitting}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="homeDir" className="form-label">Home Directory</label>
-                    <input
-                      id="homeDir"
-                      type="text"
-                      className="form-input"
-                      value={newUser.homeDir}
-                      onChange={(e) => setNewUser({ ...newUser, homeDir: e.target.value })}
-                      disabled={submitting}
-                    />
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    className="btn btn--primary"
-                    disabled={submitting}
-                  >
-                    {submitting ? 'Adding User...' : 'Add User'}
-                  </button>
-                </form>
-              </GlassPanel>
-            )}
-
-            {users.length === 0 ? (
-              <GlassPanel variant="medium" padding="lg">
-                <div className="empty-state">
-                  <p>No FTP users configured</p>
-                  {ftpStatus?.enabled && (
-                    <p className="empty-state__hint">Click "Add User" to create one</p>
-                  )}
+            <GlassPanel variant="medium" padding="lg">
+              {/* Unified users notice */}
+              <div className="unified-users-notice">
+                <div className="unified-users-notice__icon">👤</div>
+                <div>
+                  <strong>Unified Authentication</strong>
+                  <p>FTP uses Linux system users. All users created on the <strong>Users</strong> page can connect via FTP with their system credentials.</p>
                 </div>
-              </GlassPanel>
-            ) : (
-              <GlassPanel variant="medium" padding="lg">
+              </div>
+
+              {systemUsers.length === 0 ? (
+                <div className="empty-state">
+                  <p>No system users configured</p>
+                  <p className="empty-state__hint">
+                    Create users on the <strong>Access → Users</strong> page to enable FTP access.
+                  </p>
+                </div>
+              ) : (
                 <div className="table-container">
                   <table className="users-table">
                     <thead>
                       <tr>
                         <th>Username</th>
-                        <th>Home Directory</th>
-                        <th>Action</th>
+                        <th>FTP Root</th>
+                        <th>Source</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((user) => (
-                        <tr key={user.username}>
-                          <td>{user.username}</td>
-                          <td>{user.homeDir}</td>
+                      {systemUsers.map((username) => (
+                        <tr key={username}>
                           <td>
-                            <button
-                              className="btn btn--sm btn--danger"
-                              onClick={() => handleRemoveUser(user.username)}
-                              disabled={submitting}
-                            >
-                              Remove
-                            </button>
+                            <span className="user-badge">
+                              <span className="user-badge__dot" />
+                              {username}
+                            </span>
+                          </td>
+                          <td style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: 'var(--font-size-xs)' }}>
+                            /mnt/storage
+                          </td>
+                          <td>
+                            <span className="source-badge">System User</span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </GlassPanel>
-            )}
+              )}
+            </GlassPanel>
           </section>
         </div>
       </div>

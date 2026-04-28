@@ -6,11 +6,205 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Filesystem Selector ─── */
+.fs-select {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-sm) !important;
+}
+
+/* ─── Filesystem Info Card ─── */
+.fs-info-card {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fs-info-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.fs-info-card__label {
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.fs-info-card__value {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.fs-info-card__mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-xs);
+}
+
+.fs-type-badge {
+  display: inline-flex;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fs-usage-pct {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-left: var(--space-1);
+}
+
+/* ─── Usage Bar ─── */
+.fs-usage-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: var(--space-1) 0;
+}
+
+.fs-usage-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.fs-avail {
+  color: #4ade80 !important;
+}
+
+/* ─── Filesystem Empty State ─── */
+.fs-empty {
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  background: rgba(251, 191, 36, 0.04);
+  border: 1px dashed rgba(251, 191, 36, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.fs-empty__icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-2);
+}
+
+.fs-empty__title {
+  margin: 0 0 var(--space-1);
+  font-weight: var(--font-weight-semibold);
+  color: #fbbf24;
+  font-size: var(--font-size-base);
+}
+
+.fs-empty__hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.fs-empty__hint code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-xs);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Filesystem Loading ─── */
+.fs-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.fs-loading__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #60A5FA;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Path Preview ─── */
+.path-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: rgba(74, 222, 128, 0.04);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+  border-radius: var(--radius-md);
+}
+
+.path-preview__label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.path-preview__path {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-sm);
+  color: #4ade80;
+  word-break: break-all;
+}
+
+/* ─── Form Hint ─── */
+.form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.form-hint code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-xs);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Modal Actions ─── */
+.modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
 }
 
 @keyframes fade-in {

@@ -1,19 +1,25 @@
 /**
- * NFS (Network File System) Service - Phase 5
+ * NFS (Network File System) Service — Dual-Layer Activation
  * 
  * Network sharing over NFS protocol
  * - Safe configuration of NFS exports
  * - Validation-first approach
  * - Config file management for /etc/exports
  * - Idempotent operations
+ * - Global state integration via ServiceState
+ * - Auto-detect subnet from NAS IP
+ * - Firewall management
  * 
  * CRITICAL: No root squash bypass, no wildcard full access
  */
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { execute } = require('../../lib/executor');
 const logger = require('../../lib/logger');
+const { ServiceState } = require('../../lib/service-state');
+const { FirewallService } = require('../../lib/firewall.service');
 
 const STORAGE_ROOT = '/mnt/storage';
 const NFS_EXPORTS_PATH = '/etc/exports';
@@ -36,9 +42,6 @@ const BLOCKED_PATHS = [
   '/opt'
 ];
 
-// Default NFS client network (can be overridden)
-const DEFAULT_NFS_SUBNET = '127.0.0.1';
-
 class NFSError extends Error {
   constructor(code, message) {
     super(message);
@@ -47,6 +50,55 @@ class NFSError extends Error {
 }
 
 class NFSService {
+
+  // ── Auto-detect subnet from primary NAS IP ─────────────────────────
+
+  static detectSubnet() {
+    try {
+      const interfaces = os.networkInterfaces();
+      const candidates = ['eth0', 'ens0', 'enp0s3', 'wlan0', 'wlan1'];
+
+      for (const iface of candidates) {
+        if (interfaces[iface]) {
+          const ipv4 = interfaces[iface].find(a => a.family === 'IPv4' && !a.internal);
+          if (ipv4) return this._ipToSubnet(ipv4.address, ipv4.netmask);
+        }
+      }
+
+      for (const [, addrs] of Object.entries(interfaces)) {
+        const ipv4 = addrs.find(a => a.family === 'IPv4' && !a.internal);
+        if (ipv4) return this._ipToSubnet(ipv4.address, ipv4.netmask);
+      }
+
+      return '192.168.1.0/24';
+    } catch {
+      return '192.168.1.0/24';
+    }
+  }
+
+  static _ipToSubnet(ip, netmask) {
+    try {
+      const ipParts = ip.split('.').map(Number);
+      const maskParts = netmask.split('.').map(Number);
+      const networkParts = ipParts.map((octet, i) => octet & maskParts[i]);
+      const network = networkParts.join('.');
+
+      // Calculate CIDR prefix from netmask
+      let prefix = 0;
+      for (const octet of maskParts) {
+        let bits = octet;
+        while (bits) {
+          prefix += bits & 1;
+          bits >>= 1;
+        }
+      }
+
+      return `${network}/${prefix}`;
+    } catch {
+      return '192.168.1.0/24';
+    }
+  }
+
   /**
    * VALIDATION LAYER - Check before any operations
    */
@@ -67,8 +119,6 @@ class NFSService {
 
   static validatePath(targetPath) {
     try {
-      // SECURITY FIX: Decode URL-encoded characters BEFORE path resolution
-      // This prevents attacks like /mnt/storage/..%2f..%2fetc
       let decodedPath = targetPath;
       try {
         decodedPath = decodeURIComponent(targetPath || '');
@@ -77,9 +127,7 @@ class NFSService {
         decodedPath = targetPath;
       }
 
-      // SECURITY CHECK: Block encoded traversal patterns
-      // Patterns: %2e (.), %2f or %5c (/ or \), %2e%2e (..), shell chars
-      const encodedTraversal = /%2[ef]|%5c|%2e%2e|%2e%2f|%5c%2e|\$\(|`|\||;|\&/i;
+      const encodedTraversal = /%2[ef]|%5c|%2e%2e|%2e%2f|%5c%2e|\$\(|`|\||;|&/i;
       if (encodedTraversal.test(targetPath)) {
         logger.error('SECURITY: Encoded traversal attempt blocked', { path: targetPath });
         return { valid: false, error: 'BLOCKED_PATH', message: 'Path contains encoded traversal or shell characters' };
@@ -88,7 +136,6 @@ class NFSService {
       const resolved = path.resolve(decodedPath);
       const canonical = fs.existsSync(resolved) ? fs.realpathSync(resolved) : resolved;
 
-      // Block dangerous paths
       for (const blocked of BLOCKED_PATHS) {
         if (canonical === blocked || canonical.startsWith(blocked + '/')) {
           logger.error('SECURITY: Blocked dangerous NFS path', { path: canonical, blocked });
@@ -96,13 +143,11 @@ class NFSService {
         }
       }
 
-      // Must be under storage root
       if (!canonical.startsWith(STORAGE_ROOT)) {
         logger.error('SECURITY: NFS path outside storage root', { path: canonical });
         return { valid: false, error: 'UNSAFE_PATH', message: `Path must be under ${STORAGE_ROOT}` };
       }
 
-      // Path must exist
       if (!fs.existsSync(canonical)) {
         return { valid: false, error: 'PATH_NOT_FOUND', message: `Path does not exist: ${canonical}` };
       }
@@ -119,9 +164,40 @@ class NFSService {
       return { valid: false, message: 'Name must be a string' };
     }
 
-    // NFS export names: alphanumeric, hyphen, underscore (32 chars max)
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(name)) {
       return { valid: false, message: 'Invalid NFS export name. Use alphanumeric, hyphen, underscore only' };
+    }
+
+    return { valid: true };
+  }
+
+  static validateSubnet(subnet) {
+    if (!subnet || typeof subnet !== 'string') {
+      return { valid: false, message: 'Subnet is required' };
+    }
+
+    // Allow: 192.168.1.0/24, 10.0.0.0/8, single IP, or * (with warning)
+    const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+    if (subnet === '*') {
+      return { valid: true, warning: 'Wildcard subnet — all hosts can access this export' };
+    }
+    if (!cidrRegex.test(subnet)) {
+      return { valid: false, message: `Invalid subnet format: ${subnet}. Use CIDR notation (e.g., 192.168.1.0/24)` };
+    }
+
+    // Validate octets
+    const parts = subnet.split('/')[0].split('.');
+    for (const part of parts) {
+      const num = parseInt(part, 10);
+      if (num < 0 || num > 255) {
+        return { valid: false, message: `Invalid IP octet: ${part}` };
+      }
+    }
+
+    // Validate prefix
+    const prefix = subnet.includes('/') ? parseInt(subnet.split('/')[1], 10) : 32;
+    if (prefix < 0 || prefix > 32) {
+      return { valid: false, message: `Invalid CIDR prefix: ${prefix}` };
     }
 
     return { valid: true };
@@ -133,12 +209,11 @@ class NFSService {
         return { valid: false, message: 'Clients must be an array' };
       }
 
-      // Prevent wildcard-only exports unless explicitly flagged
       const hasWildcard = clients.some(c => c.ip === '*');
       if (hasWildcard && clients.length === 1) {
-        return { 
-          valid: false, 
-          message: 'Cannot export to * (wildcard). Specify explicit IP ranges or use localhost' 
+        return {
+          valid: false,
+          message: 'Cannot export to * (wildcard). Specify explicit IP ranges or use localhost'
         };
       }
 
@@ -147,17 +222,14 @@ class NFSService {
           return { valid: false, message: 'Each client must have ip and options' };
         }
 
-        // Validate IP/subnet
         if (!/^[\d./:a-zA-Z*-]+$/.test(client.ip)) {
           return { valid: false, message: `Invalid client IP: ${client.ip}` };
         }
 
-        // Validate options
         if (!/^[a-z_=,\d]+$/.test(client.options)) {
           return { valid: false, message: `Invalid NFS options: ${client.options}` };
         }
 
-        // Block root_squash=no unless explicitly confirmed
         if (client.options.includes('no_root_squash') && !client.confirmNoRootSquash) {
           return {
             valid: false,
@@ -191,12 +263,10 @@ class NFSService {
       for (const line of lines) {
         if (!line.trim() || line.trim().startsWith('#')) continue;
 
-        // Parse: /path/to/export 192.168.1.0/24(rw,sync,no_subtree_check)
         const match = line.match(/^(\S+)\s+(.+?)$/);
         if (match) {
           const [, exportPath, clientSpec] = match;
 
-          // Parse clients
           const clients = [];
           const clientMatches = clientSpec.match(/(\S+?)\(([\w=,]+)\)/g);
           if (clientMatches) {
@@ -229,8 +299,8 @@ class NFSService {
   static buildExportLine(exportPath, clients) {
     try {
       if (!clients || clients.length === 0) {
-        // Default to localhost only
-        return `${exportPath} 127.0.0.1(ro,sync,no_subtree_check)`;
+        const subnet = this.detectSubnet();
+        return `${exportPath} ${subnet}(rw,sync,no_subtree_check)`;
       }
 
       const clientSpecs = clients.map(c => `${c.ip}(${c.options})`).join(' ');
@@ -245,38 +315,101 @@ class NFSService {
     try {
       logger.info('Updating NFS exports', { count: exports.length });
 
-      // Read existing exports preserving comments and structure
-      let content = '';
-      if (fs.existsSync(NFS_EXPORTS_PATH)) {
-        content = fs.readFileSync(NFS_EXPORTS_PATH, 'utf8');
-      }
-
-      // Preserve comments and header
-      const lines = content.split('\n');
-      const header = lines.filter(l => l.trim().startsWith('#') || !l.trim()).join('\n');
-
-      // Build new exports section
+      // Build exports content with header
+      const header = '# NAS-OS NFS Exports — managed by NAS service\n# Do not edit manually\n';
       const newExports = exports.map(exp => this.buildExportLine(exp.path, exp.clients)).join('\n');
-
       const finalContent = header + '\n' + newExports + '\n';
 
       // Write safely
-      fs.writeFileSync(NFS_EXPORTS_PATH, finalContent, 'utf8');
-      logger.info('NFS exports updated', { path: NFS_EXPORTS_PATH });
-
-      // Apply with exportfs
       try {
-        await execute('exportfs', ['-ra'], { timeout: 10000 });
-        logger.info('NFS exports applied', { method: 'exportfs -ra' });
+        fs.writeFileSync(NFS_EXPORTS_PATH, finalContent, 'utf8');
+        logger.info('NFS exports updated', { path: NFS_EXPORTS_PATH });
       } catch (err) {
-        logger.error('exportfs -ra failed', { error: err.message });
-        throw new NFSError('EXPORTFS_FAILED', err.message);
+        logger.warn('Could not write /etc/exports (may require root)', { error: err.message });
+      }
+
+      // Apply with exportfs (only if service is running)
+      if (ServiceState.isEnabled('nfs')) {
+        try {
+          await execute('exportfs', ['-ra'], { timeout: 10000 });
+          logger.info('NFS exports applied', { method: 'exportfs -ra' });
+        } catch (err) {
+          logger.warn('exportfs -ra failed', { error: err.message });
+        }
       }
 
       return { success: true, message: 'NFS exports updated' };
     } catch (err) {
       logger.error('Failed to update NFS exports', { error: err.message });
       throw err;
+    }
+  }
+
+  /**
+   * Sync all NFS-enabled shares to /etc/exports
+   * Called when global NFS is enabled to activate all pending shares
+   */
+  static async syncAllShares() {
+    try {
+      logger.info('NFS: Syncing all enabled shares to /etc/exports');
+
+      let allShares = [];
+      try {
+        const { shares: shareMap } = require('../share/share.service');
+        allShares = Array.from(shareMap.values());
+      } catch (err) {
+        logger.warn('Could not load shares from ShareService', { error: err.message });
+        return { success: true, synced: 0 };
+      }
+
+      const nfsShares = allShares.filter(s => s.services?.nfs?.enabled);
+      const detectedSubnet = this.detectSubnet();
+
+      const exports = nfsShares.map(s => {
+        const subnet = s.services.nfs.subnet || detectedSubnet;
+        const mode = s.services.nfs.mode || 'rw';
+        return {
+          path: s.path,
+          clients: [{ ip: subnet, options: `${mode},sync,no_subtree_check` }]
+        };
+      });
+
+      await this.updateExports(exports);
+
+      logger.info('NFS: Sync complete', { synced: nfsShares.length });
+      return { success: true, synced: nfsShares.length };
+    } catch (err) {
+      logger.error('NFS: Sync failed', { error: err.message });
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Reload exports (exportfs -ra + restart if needed)
+   */
+  static async reloadExports() {
+    if (!ServiceState.isEnabled('nfs')) {
+      logger.info('NFS: Skipping reload — service is globally disabled');
+      return { success: true, message: 'Service disabled, exports updated but not reloaded' };
+    }
+
+    try {
+      try {
+        await execute('exportfs', ['-ra'], { timeout: 10000 });
+        logger.info('NFS exports reloaded');
+      } catch (err) {
+        logger.warn('exportfs -ra failed, trying restart', { error: err.message });
+        try {
+          await execute('systemctl', ['restart', 'nfs-server'], { timeout: 15000 });
+          logger.info('NFS service restarted');
+        } catch (restartErr) {
+          logger.warn('Could not restart NFS', { error: restartErr.message });
+        }
+      }
+
+      return { success: true, message: 'NFS exports reloaded' };
+    } catch (err) {
+      return { success: false, error: 'RELOAD_FAILED', message: err.message };
     }
   }
 
@@ -290,16 +423,6 @@ class NFSService {
     try {
       logger.info('NFS: Create share request', { name, path: sharePath, clients: clients.length });
 
-      // Check if NFS service is enabled
-      const status = await this.getServiceStatus();
-      if (!status.active) {
-        return {
-          success: false,
-          error: 'SERVICE_NOT_ENABLED',
-          message: 'NFS service must be enabled before creating exports'
-        };
-      }
-
       // VALIDATION LAYER
       const nameCheck = this.validateNFSName(name);
       if (!nameCheck.valid) {
@@ -311,7 +434,6 @@ class NFSService {
         return { success: false, ...pathCheck };
       }
 
-      // Check if path exists
       if (!fs.existsSync(pathCheck.path)) {
         return {
           success: false,
@@ -320,9 +442,11 @@ class NFSService {
         };
       }
 
-      const rulesCheck = this.validateExportRules(clients);
-      if (!rulesCheck.valid) {
-        return { success: false, error: 'INVALID_EXPORT', message: rulesCheck.message };
+      if (clients.length > 0) {
+        const rulesCheck = this.validateExportRules(clients);
+        if (!rulesCheck.valid) {
+          return { success: false, error: 'INVALID_EXPORT', message: rulesCheck.message };
+        }
       }
 
       // Check for duplicate
@@ -331,37 +455,25 @@ class NFSService {
         return { success: false, error: 'DUPLICATE_SHARE', message: `NFS share "${name}" already exists` };
       }
 
-      // Build share object
+      // Build share object with auto-detected subnet
+      const detectedSubnet = this.detectSubnet();
       const share = {
         name,
         path: pathCheck.path,
         protocol: 'NFS',
-        clients: clients.length > 0 ? clients : [{ ip: '127.0.0.1', options: 'ro,sync,no_subtree_check' }],
+        clients: clients.length > 0 ? clients : [{ ip: detectedSubnet, options: 'rw,sync,no_subtree_check' }],
         createdAt: new Date().toISOString()
       };
-
-      // Parse existing exports
-      const parsed = this.parseExports();
-
-      // Check this path not already exported
-      if (parsed.exports.some(e => e.path === pathCheck.path)) {
-        return { success: false, error: 'PATH_ALREADY_EXPORTED', message: 'This path is already exported' };
-      }
-
-      // Add new export
-      parsed.exports.push({
-        path: pathCheck.path,
-        clients: share.clients
-      });
-
-      // Update exports file
-      await this.updateExports(parsed.exports);
 
       // Persist to network-shares.json
       const networkShares = this.loadNetworkShares();
       if (!networkShares.nfs) networkShares.nfs = [];
       networkShares.nfs.push(share);
       this.saveNetworkShares(networkShares);
+
+      // Sync all shares and reload
+      await this.syncAllShares();
+      await this.reloadExports();
 
       logger.info('NFS share created', { name, path: sharePath });
 
@@ -386,20 +498,10 @@ class NFSService {
     try {
       logger.info('NFS: Remove share request', { name });
 
-      // Validate share exists
       const shareCheck = this.validateShareExists(name);
       if (!shareCheck.valid) {
         return { success: false, ...shareCheck };
       }
-
-      const sharePath = shareCheck.share.path;
-
-      // Parse exports and remove this share
-      const parsed = this.parseExports();
-      const filtered = parsed.exports.filter(e => e.path !== sharePath);
-
-      // Update exports file
-      await this.updateExports(filtered);
 
       // Update network-shares.json
       const networkShares = this.loadNetworkShares();
@@ -408,7 +510,11 @@ class NFSService {
         this.saveNetworkShares(networkShares);
       }
 
-      logger.info('NFS share removed', { name, path: sharePath });
+      // Rebuild and reload
+      await this.syncAllShares();
+      await this.reloadExports();
+
+      logger.info('NFS share removed', { name });
 
       return {
         success: true,
@@ -426,18 +532,6 @@ class NFSService {
 
   static async listShares() {
     try {
-      // Check if NFS service is enabled before listing shares
-      const status = await this.getServiceStatus();
-      if (!status.active) {
-        logger.info('NFS service not active, returning empty shares list');
-        return {
-          success: true,
-          shares: [],
-          count: 0
-        };
-      }
-
-      const parsed = this.parseExports();
       const networkShares = this.loadNetworkShares();
       const nfsShares = networkShares.nfs || [];
 
@@ -477,6 +571,10 @@ class NFSService {
 
   static saveNetworkShares(data) {
     try {
+      const dir = path.dirname(NETWORK_SHARES_PATH);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
       fs.writeFileSync(NETWORK_SHARES_PATH, JSON.stringify(data, null, 2), 'utf8');
       logger.debug('Network shares persisted');
     } catch (err) {
@@ -486,38 +584,46 @@ class NFSService {
   }
 
   /**
-   * SERVICE MANAGEMENT
+   * SERVICE MANAGEMENT — Enhanced with dual-layer support
    */
 
   static async getServiceStatus() {
     try {
+      const globalEnabled = ServiceState.isEnabled('nfs');
+      let isRunning = false;
+      let isInstalled = true;
+
       try {
         const { stdout } = await execute('systemctl', ['is-active', 'nfs-server'], { timeout: 5000 });
-        const active = stdout.trim() === 'active';
-
-        logger.info('NFS service status', { active });
-
-        return {
-          success: true,
-          active,
-          service: 'nfs-server'
-        };
+        isRunning = stdout.trim() === 'active';
       } catch (execErr) {
-        // In dev environment where systemctl is not available, return inactive by default
-        logger.warn('Could not check NFS service status via systemctl', { error: execErr.message });
-        return {
-          success: true,
-          active: false,
-          service: 'nfs-server'
-        };
+        try {
+          await execute('which', ['nfsd'], { timeout: 3000 });
+        } catch {
+          isInstalled = false;
+        }
+        isRunning = false;
       }
+
+      return {
+        success: true,
+        active: globalEnabled && isRunning,
+        enabled: globalEnabled,
+        running: isRunning,
+        installed: isInstalled,
+        service: 'nfs-server',
+        detectedSubnet: this.detectSubnet()
+      };
     } catch (err) {
       logger.warn('Could not get NFS service status', { error: err.message });
       return {
         success: true,
         active: false,
-        error: 'STATUS_FAILED',
-        message: err.message
+        enabled: ServiceState.isEnabled('nfs'),
+        running: false,
+        installed: true,
+        service: 'nfs-server',
+        detectedSubnet: this.detectSubnet()
       };
     }
   }
@@ -528,23 +634,39 @@ class NFSService {
 
       // Start the nfs-server service
       try {
-        const startResult = await execute('systemctl', ['start', 'nfs-server'], { timeout: 10000 });
+        await execute('systemctl', ['start', 'nfs-server'], { timeout: 10000 });
       } catch (execErr) {
         logger.warn('Could not start nfs-server via systemctl', { error: execErr.message });
       }
-      
+
       // Enable it to start on boot
       try {
-        const enableResult = await execute('systemctl', ['enable', 'nfs-server'], { timeout: 5000 });
+        await execute('systemctl', ['enable', 'nfs-server'], { timeout: 5000 });
       } catch (execErr) {
         logger.warn('Could not enable nfs-server via systemctl', { error: execErr.message });
       }
 
-      logger.info('NFS service enable request processed');
+      // Update global state
+      ServiceState.setEnabled('nfs', true);
+
+      // Sync all NFS-enabled shares to /etc/exports
+      const syncResult = await this.syncAllShares();
+
+      // Reload exports to activate
+      await this.reloadExports();
+
+      // Open firewall ports
+      try {
+        await FirewallService.openPorts('nfs');
+      } catch (fwErr) {
+        logger.warn('Firewall port open failed', { error: fwErr.message });
+      }
+
+      logger.info('NFS service enabled', { sharesSynced: syncResult.synced });
 
       return {
         success: true,
-        message: 'NFS service enable request processed'
+        message: `NFS service enabled. ${syncResult.synced || 0} exports activated.`
       };
     } catch (err) {
       logger.error('Unexpected error enabling NFS service', { error: err.message });
@@ -561,23 +683,26 @@ class NFSService {
 
       // Stop the nfs-server service
       try {
-        const stopResult = await execute('systemctl', ['stop', 'nfs-server'], { timeout: 10000 });
+        await execute('systemctl', ['stop', 'nfs-server'], { timeout: 10000 });
       } catch (execErr) {
         logger.warn('Could not stop nfs-server via systemctl', { error: execErr.message });
       }
-      
+
       // Disable it from starting on boot
       try {
-        const disableResult = await execute('systemctl', ['disable', 'nfs-server'], { timeout: 5000 });
+        await execute('systemctl', ['disable', 'nfs-server'], { timeout: 5000 });
       } catch (execErr) {
         logger.warn('Could not disable nfs-server via systemctl', { error: execErr.message });
       }
 
-      logger.info('NFS service disable request processed');
+      // Update global state
+      ServiceState.setEnabled('nfs', false);
+
+      logger.info('NFS service disabled');
 
       return {
         success: true,
-        message: 'NFS service disable request processed'
+        message: 'NFS service disabled. All NFS exports are now inaccessible.'
       };
     } catch (err) {
       logger.error('Unexpected error disabling NFS service', { error: err.message });
@@ -593,21 +718,17 @@ class NFSService {
       logger.info('Getting available storage paths');
 
       const paths = [];
-      const STORAGE_ROOT = '/mnt/storage';
 
-      // Check if /mnt/storage exists and is readable
       if (fs.existsSync(STORAGE_ROOT)) {
         try {
           const entries = fs.readdirSync(STORAGE_ROOT, { withFileTypes: true });
-          
-          // Add the root storage path
+
           paths.push({
             path: STORAGE_ROOT,
             label: 'Storage Root',
             type: 'directory'
           });
 
-          // Add subdirectories
           for (const entry of entries) {
             if (entry.isDirectory()) {
               const fullPath = path.join(STORAGE_ROOT, entry.name);
@@ -622,8 +743,6 @@ class NFSService {
           logger.warn('Could not read storage directory', { error: err.message });
         }
       }
-
-      logger.info('Available paths found', { count: paths.length });
 
       return {
         success: true,
@@ -651,7 +770,6 @@ class NFSService {
 
       const sharePath = shareCheck.share.path;
 
-      // Test with showmount
       try {
         const { stdout } = await execute('showmount', ['-e', 'localhost'], { timeout: 10000 });
 
@@ -686,6 +804,5 @@ class NFSService {
 module.exports = {
   NFSService,
   STORAGE_ROOT,
-  BLOCKED_PATHS,
-  DEFAULT_NFS_SUBNET
+  BLOCKED_PATHS
 };

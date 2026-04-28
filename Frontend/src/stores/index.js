@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import diskService from '../services/disk.service';
 import raidService from '../services/raid.service';
-import { shareService, smbService, nfsService } from '../services/share.service';
+import { shareService, smbService, nfsService, ftpService } from '../services/share.service';
 import systemService from '../services/system.service';
 import networkService from '../services/network.service';
 import accessService from '../services/access.service';
@@ -134,23 +134,51 @@ export const useStorageStore = create((set, get) => ({
 /**
  * Share Store
  * Central state for shared folders, services, permissions, and access endpoints.
+ * Includes global service state (dual-layer) and FTP status.
  */
 export const useShareStore = create((set, get) => ({
   shares: [],
   sharesLoading: false,
   sharesError: null,
 
+  // Global service state (dual-layer)
+  globalServiceState: { smb: false, nfs: false, ftp: false },
+
+  // Per-service status
+  smbStatus: null,
+  nfsStatus: null,
+  ftpStatus: null,
+
   /**
-   * Fetch all shares (enriched with ACL + access endpoints)
+   * Fetch all shares (enriched with ACL + access endpoints + global state)
    */
   fetchShares: async () => {
     set({ sharesLoading: true, sharesError: null });
     try {
-      const shareList = await shareService.listShares();
-      set({ shares: shareList, sharesLoading: false });
+      const response = await shareService.listShares();
+      const shareList = response?.shares || [];
+      const globalState = response?.globalServiceState || get().globalServiceState;
+      set({
+        shares: shareList,
+        globalServiceState: globalState,
+        sharesLoading: false
+      });
       return shareList;
     } catch (error) {
       set({ sharesError: error.message || 'Failed to fetch shares', sharesLoading: false });
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch global service state explicitly
+   */
+  fetchGlobalServiceState: async () => {
+    try {
+      const state = await shareService.getGlobalServiceState();
+      set({ globalServiceState: state });
+      return state;
+    } catch (error) {
       throw error;
     }
   },
@@ -163,8 +191,12 @@ export const useShareStore = create((set, get) => ({
     try {
       const result = await shareService.createShare(params);
       // Re-fetch to get enriched data
-      const shareList = await shareService.listShares();
-      set({ shares: shareList, sharesLoading: false });
+      const response = await shareService.listShares();
+      set({
+        shares: response?.shares || [],
+        globalServiceState: response?.globalServiceState || get().globalServiceState,
+        sharesLoading: false
+      });
       return result;
     } catch (error) {
       set({ sharesError: error.message || 'Failed to create share', sharesLoading: false });
@@ -179,8 +211,12 @@ export const useShareStore = create((set, get) => ({
     set({ sharesLoading: true, sharesError: null });
     try {
       const result = await shareService.deleteShare(name, removeDirectory);
-      const shareList = await shareService.listShares();
-      set({ shares: shareList, sharesLoading: false });
+      const response = await shareService.listShares();
+      set({
+        shares: response?.shares || [],
+        globalServiceState: response?.globalServiceState || get().globalServiceState,
+        sharesLoading: false
+      });
       return result;
     } catch (error) {
       set({ sharesError: error.message || 'Failed to delete share', sharesLoading: false });
@@ -190,17 +226,19 @@ export const useShareStore = create((set, get) => ({
 
   /**
    * Update services (SMB/NFS/FTP) for a share.
-   * This is the primary method for toggling and configuring protocols.
-   * 
-   * @param {string} name - share name
-   * @param {object} services - e.g. { smb: { enabled: true, readOnly: false } }
+   * Returns warnings from the dual-layer check.
    */
   updateServices: async (name, services) => {
     set({ sharesLoading: true, sharesError: null });
     try {
-      await shareService.updateServices(name, services);
-      const shareList = await shareService.listShares();
-      set({ shares: shareList, sharesLoading: false });
+      const result = await shareService.updateServices(name, services);
+      const response = await shareService.listShares();
+      set({
+        shares: response?.shares || [],
+        globalServiceState: response?.globalServiceState || get().globalServiceState,
+        sharesLoading: false
+      });
+      return result;
     } catch (error) {
       set({ sharesError: error.message || 'Failed to update services', sharesLoading: false });
       throw error;
@@ -209,28 +247,27 @@ export const useShareStore = create((set, get) => ({
 
   /**
    * Update ACL permissions for a share.
-   * 
-   * @param {string} name - share name
-   * @param {Array} permissions - [{ subject: "user:john", access: "write" }]
    */
   updatePermissions: async (name, permissions) => {
     set({ sharesLoading: true, sharesError: null });
     try {
       await shareService.updatePermissions(name, permissions);
-      const shareList = await shareService.listShares();
-      set({ shares: shareList, sharesLoading: false });
+      const response = await shareService.listShares();
+      set({
+        shares: response?.shares || [],
+        globalServiceState: response?.globalServiceState || get().globalServiceState,
+        sharesLoading: false
+      });
     } catch (error) {
       set({ sharesError: error.message || 'Failed to update permissions', sharesLoading: false });
       throw error;
     }
   },
 
-  /**
-   * SMB/NFS Status & Service Management
-   * (These are used by the SMBNFS config page, not the generic Shares page)
-   */
-  smbStatus: null,
-  nfsStatus: null,
+  // ═══════════════════════════════════════════════════════════════════
+  //  SMB / NFS / FTP Service Management
+  //  (Used by SMBNFS and FTP pages for global service toggle)
+  // ═══════════════════════════════════════════════════════════════════
 
   fetchSmbStatus: async () => {
     try {
@@ -252,12 +289,26 @@ export const useShareStore = create((set, get) => ({
     }
   },
 
+  fetchFtpStatus: async () => {
+    try {
+      const status = await ftpService.getServiceStatus();
+      set({ ftpStatus: status });
+      return status;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Enable SMB — also refreshes shares so endpoints update
+   */
   enableSmbService: async () => {
     try {
       const result = await smbService.enableService();
-      // Re-fetch status
       const status = await smbService.getServiceStatus();
-      set({ smbStatus: status });
+      set({ smbStatus: status, globalServiceState: { ...get().globalServiceState, smb: true } });
+      // Cross-refresh: shares need updated endpoints
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
       return result;
     } catch (error) {
       throw error;
@@ -267,9 +318,9 @@ export const useShareStore = create((set, get) => ({
   disableSmbService: async () => {
     try {
       const result = await smbService.disableService();
-      // Re-fetch status
       const status = await smbService.getServiceStatus();
-      set({ smbStatus: status });
+      set({ smbStatus: status, globalServiceState: { ...get().globalServiceState, smb: false } });
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
       return result;
     } catch (error) {
       throw error;
@@ -279,9 +330,9 @@ export const useShareStore = create((set, get) => ({
   enableNfsService: async () => {
     try {
       const result = await nfsService.enableService();
-      // Re-fetch status
       const status = await nfsService.getServiceStatus();
-      set({ nfsStatus: status });
+      set({ nfsStatus: status, globalServiceState: { ...get().globalServiceState, nfs: true } });
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
       return result;
     } catch (error) {
       throw error;
@@ -291,9 +342,33 @@ export const useShareStore = create((set, get) => ({
   disableNfsService: async () => {
     try {
       const result = await nfsService.disableService();
-      // Re-fetch status
       const status = await nfsService.getServiceStatus();
-      set({ nfsStatus: status });
+      set({ nfsStatus: status, globalServiceState: { ...get().globalServiceState, nfs: false } });
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  enableFtpService: async (options = {}) => {
+    try {
+      const result = await ftpService.enableService(options);
+      const status = await ftpService.getServiceStatus();
+      set({ ftpStatus: status, globalServiceState: { ...get().globalServiceState, ftp: true } });
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  disableFtpService: async () => {
+    try {
+      const result = await ftpService.disableService();
+      const status = await ftpService.getServiceStatus();
+      set({ ftpStatus: status, globalServiceState: { ...get().globalServiceState, ftp: false } });
+      try { await get().fetchShares(); } catch { /* non-fatal */ }
       return result;
     } catch (error) {
       throw error;
@@ -541,4 +616,3 @@ export const useAccessStore = create((set) => ({
     }
   }
 }));
-

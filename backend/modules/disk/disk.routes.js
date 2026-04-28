@@ -35,16 +35,16 @@ router.get('/usage', requireAuth, async (req, res, next) => {
   }
 });
 
-// ── Create partition (GPT, full disk) ──
+// ── Create partition (GPT: full / custom / append) ──
 router.post('/partition/create', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
-    const { device, confirm } = req.body;
+    const { device, confirm, mode, partitions, appendSizeMB } = req.body;
     if (!device) return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'device is required' });
-    const result = await diskService.createPartition(device, confirm);
+    const result = await diskService.createPartition(device, confirm, { mode, partitions, appendSizeMB });
     broadcast('disk:partition_created', result);
     res.ok(result);
   } catch (err) {
-    if (err.code === 'CONFIRMATION_REQUIRED' || err.code === 'SYSTEM_DISK' || err.code === 'DISK_MOUNTED') {
+    if (['CONFIRMATION_REQUIRED', 'SYSTEM_DISK', 'DISK_MOUNTED', 'NO_FREE_SPACE', 'INVALID_MODE'].includes(err.code)) {
       return res.status(400).json({ success: false, error: err.code, message: err.message });
     }
     next(err);

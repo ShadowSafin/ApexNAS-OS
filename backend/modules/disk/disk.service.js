@@ -152,10 +152,19 @@ async function getDiskUsage() {
 }
 
 /**
- * Create partition on disk (full-disk GPT partition).
+ * Create partition(s) on disk.
+ * 
+ * Options:
+ *   mode: 'full'   - Wipe disk, create single partition using 100% of disk
+ *   mode: 'custom' - Wipe disk, create multiple partitions with specified sizes
+ *   mode: 'append' - Keep existing data, add a partition in remaining free space
+ *   partitions: Array of { sizeMB: number } for custom mode
+ *   appendSizeMB: number for append mode (0 = use all remaining space)
+ *
  * Requires disk to not be mounted and not be the system disk.
  */
-async function createPartition(device, confirm = '') {
+async function createPartition(device, confirm = '', options = {}) {
+  const { mode = 'full', partitions = [], appendSizeMB = 0 } = options;
   const fullDevice = device.startsWith('/dev/') ? device : `/dev/${device}`;
   const bareName = device.replace(/^\/dev\//, '');
 
@@ -178,7 +187,6 @@ async function createPartition(device, confirm = '') {
     }
   } catch (err) {
     if (err.code === 'DISK_MOUNTED' || err.code === 'SYSTEM_DISK') throw err;
-    // lsblk error is non-fatal for unmounted disks
   }
 
   // Confirmation required
@@ -187,24 +195,102 @@ async function createPartition(device, confirm = '') {
   }
 
   try {
-    // Create GPT label
-    await execute('parted', [fullDevice, '--script', 'mklabel', 'gpt'], { timeout: 15000 });
-    // Create single partition spanning full disk
-    await execute('parted', [fullDevice, '--script', 'mkpart', 'primary', '0%', '100%'], { timeout: 15000 });
+    const createdPartitions = [];
 
-    logger.info('Partition created on full disk', { device: fullDevice });
+    if (mode === 'full') {
+      // ── Full disk: wipe + single 100% partition ──
+      await execute('parted', [fullDevice, '--script', 'mklabel', 'gpt'], { timeout: 15000 });
+      await execute('parted', [fullDevice, '--script', 'mkpart', 'primary', '0%', '100%'], { timeout: 15000 });
+      const partName = bareName.match(/\d$/) ? `${fullDevice}p1` : `${fullDevice}1`;
+      createdPartitions.push(partName);
+      logger.info('Full-disk partition created', { device: fullDevice });
 
-    // Determine partition name
-    const partName = bareName.match(/\d$/) ? `${fullDevice}p1` : `${fullDevice}1`;
+    } else if (mode === 'custom' && partitions.length > 0) {
+      // ── Custom: wipe + multiple sized partitions ──
+      await execute('parted', [fullDevice, '--script', 'mklabel', 'gpt'], { timeout: 15000 });
+
+      let startMB = 1; // leave 1MB for GPT header
+      for (let i = 0; i < partitions.length; i++) {
+        const { sizeMB } = partitions[i];
+        const isLast = i === partitions.length - 1;
+
+        // If last partition and sizeMB is 0 or missing, fill remaining space
+        const endStr = (!sizeMB || sizeMB <= 0 || isLast && partitions[i].fillRemaining) ? '100%' : `${startMB + sizeMB}MiB`;
+
+        await execute('parted', [
+          fullDevice, '--script', '--align', 'optimal',
+          'mkpart', 'primary', `${startMB}MiB`, endStr
+        ], { timeout: 15000 });
+
+        const partNum = i + 1;
+        const partName = bareName.match(/\d$/) ? `${fullDevice}p${partNum}` : `${fullDevice}${partNum}`;
+        createdPartitions.push(partName);
+
+        if (endStr !== '100%') {
+          startMB += sizeMB;
+        }
+      }
+      logger.info('Custom partitions created', { device: fullDevice, count: partitions.length });
+
+    } else if (mode === 'append') {
+      // ── Append: add partition to existing free space ──
+      // Find free space at end of disk
+      const { stdout: freeOut } = await execute('parted', [fullDevice, '--script', 'unit', 'MiB', 'print', 'free'], { timeout: 10000 });
+      
+      // Parse free space blocks — look for the last "Free Space" line
+      const freeLines = freeOut.split('\n').filter(l => l.includes('Free Space'));
+      if (freeLines.length === 0) {
+        throw new DiskError('NO_FREE_SPACE', 'No free space available on disk for new partition');
+      }
+      const lastFree = freeLines[freeLines.length - 1];
+      // Parse: "  17400MiB  30500MiB  13100MiB  Free Space"
+      const freeMatch = lastFree.match(/([\d.]+)MiB\s+([\d.]+)MiB/);
+      if (!freeMatch) {
+        throw new DiskError('NO_FREE_SPACE', 'Could not parse free space');
+      }
+      const freeStartMB = parseFloat(freeMatch[1]);
+      const freeEndMB = parseFloat(freeMatch[2]);
+
+      let endStr;
+      if (appendSizeMB > 0 && appendSizeMB < (freeEndMB - freeStartMB)) {
+        endStr = `${freeStartMB + appendSizeMB}MiB`;
+      } else {
+        endStr = `${freeEndMB}MiB`;
+      }
+
+      await execute('parted', [
+        fullDevice, '--script', '--align', 'optimal',
+        'mkpart', 'primary', `${freeStartMB}MiB`, endStr
+      ], { timeout: 15000 });
+
+      // Detect the new partition name
+      const { stdout: lsblkOut } = await execute('lsblk', ['-n', '-p', '-o', 'NAME', fullDevice], { timeout: 5000 });
+      const allParts = lsblkOut.trim().split('\n').map(s => s.trim()).filter(p => p && p !== fullDevice);
+      const newPart = allParts[allParts.length - 1];
+      createdPartitions.push(newPart);
+      logger.info('Partition appended', { device: fullDevice, partition: newPart });
+
+    } else {
+      throw new DiskError('INVALID_MODE', 'mode must be "full", "custom", or "append"');
+    }
+
+    // Ensure kernel re-reads partition table
+    try { await execute('partprobe', [fullDevice], { timeout: 10000 }); } catch { /* best effort */ }
+    // Wait for udev to finish processing the new partition events
+    try { await execute('udevadm', ['settle', '--timeout=5'], { timeout: 10000 }); } catch { /* best effort */ }
+    // Small delay to ensure /dev entries are fully created
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     return {
       device: fullDevice,
-      partition: partName,
+      partitions: createdPartitions,
+      partition: createdPartitions[0], // backwards compat
       status: 'created',
-      message: `GPT partition created on ${fullDevice}`
+      message: `${createdPartitions.length} partition(s) created on ${fullDevice}`
     };
   } catch (err) {
-    logger.error('Failed to create partition', { device: fullDevice, error: err.message });
+    if (err.code && err.code !== 'PARTITION_FAILED') throw err;
+    logger.error('Failed to create partition', { device: fullDevice, mode, error: err.message });
     throw new DiskError('PARTITION_FAILED', `Cannot create partition: ${err.message}`);
   }
 }
@@ -338,7 +424,19 @@ async function mountPartition(partition, mountpoint, fstype = 'auto') {
  */
 async function unmountPartition(mountpoint) {
   if (!validateMountpoint(mountpoint)) {
-    throw new DiskError('INVALID_MOUNTPOINT', 'Mountpoint must start with /mnt/');
+    throw new DiskError('INVALID_MOUNTPOINT', 'Invalid mountpoint path');
+  }
+
+  // Block unmounting OS-critical paths
+  const blockedPaths = ['/', '/boot', '/boot/efi', '/etc', '/var', '/usr', '/sys', '/proc', '/dev', '/run', '/tmp', '/home'];
+  const normalized = mountpoint.replace(/\/+$/, ''); // strip trailing slash
+  if (blockedPaths.includes(normalized)) {
+    throw new DiskError('BLOCKED_PATH', `Cannot unmount system-critical path: ${mountpoint}`);
+  }
+
+  // Only allow unmounting from /mnt/ or /media/ (safe user paths)
+  if (!normalized.startsWith('/mnt/') && !normalized.startsWith('/media/')) {
+    throw new DiskError('INVALID_MOUNTPOINT', 'Can only unmount paths under /mnt/ or /media/');
   }
 
   try {
@@ -354,7 +452,7 @@ async function unmountPartition(mountpoint) {
     return { mountpoint, status: 'unmounted' };
   } catch (err) {
     logger.error('Unmount failed', { mountpoint, error: err.message });
-    throw new DiskError('DEVICE_BUSY', `Cannot unmount: device busy`);
+    throw new DiskError('DEVICE_BUSY', `Cannot unmount: device may be busy. Close any programs using this filesystem and try again.`);
   }
 }
 

@@ -357,6 +357,83 @@
   animation: fadeInUp var(--duration-slow) var(--ease-out) both;
 }
 
+/* ─── Unified Users Notice ─── */
+.unified-users-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.unified-users-notice__icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.unified-users-notice strong {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.unified-users-notice p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ─── User Badge ─── */
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.user-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+/* ─── Source Badge ─── */
+.source-badge {
+  display: inline-flex;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background: rgba(99, 102, 241, 0.1);
+  color: #818CF8;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* ─── Share Count ─── */
+.share-count {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.share-count--active {
+  color: #4ade80;
+}
+
+.share-count-hint {
+  font-size: var(--font-size-xs);
+  color: #fbbf24;
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .section__header {

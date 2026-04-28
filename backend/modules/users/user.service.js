@@ -152,9 +152,11 @@ class UserService {
 
   /**
    * Create a new Linux user
-   * Uses: useradd -m -s /usr/sbin/nologin username
+   * Uses: useradd -m -s /bin/bash username
    * Then: chpasswd for password setting
    * Then: smbpasswd -a for SMB authentication
+   * NOTE: /bin/bash is required — vsftpd PAM uses pam_shells.so which
+   * rejects users with /usr/sbin/nologin (causes 530 Login incorrect)
    */
   static async createUser(username, password) {
     try {
@@ -174,9 +176,10 @@ class UserService {
         return { success: false, error: 'USER_EXISTS', message: `User "${username}" already exists` };
       }
 
-      // Create user with home directory, no login shell
+      // Create user with home directory and valid login shell
+      // Shell MUST be in /etc/shells for FTP (pam_shells.so) to work
       try {
-        await execute('useradd', ['-m', '-s', '/usr/sbin/nologin', username], { timeout: 10000 });
+        await execute('useradd', ['-m', '-s', '/bin/bash', username], { timeout: 10000 });
         logger.info('UserService: useradd succeeded', { username });
       } catch (err) {
         logger.error('UserService: useradd failed', { error: err.message });

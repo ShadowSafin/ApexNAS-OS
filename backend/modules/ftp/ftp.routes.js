@@ -1,159 +1,151 @@
 /**
- * FTP Routes - Phase 7
+ * FTP Routes — Per-User Share Jailing with Unified Linux Users
  * 
- * API endpoints for FTP service management
- * - Enable / disable FTP
- * - Get FTP status
- * - User management
+ * API endpoints for FTP service management.
+ * FTP uses Linux system users (no separate FTP user DB).
  */
 
 const express = require('express');
 const router = express.Router();
-const { FTPService, FTPError } = require('./ftp.service');
-const { validate } = require('../../middleware/validate');
-const { requireAuth, requireRole } = require('../../middleware/auth');
-const { broadcast } = require('../../lib/websocket');
+const { FTPService } = require('./ftp.service');
 const logger = require('../../lib/logger');
-const {
-  enableFTPSchema,
-  updateFTPSchema,
-  addFTPUserSchema,
-  removeFTPUserSchema
-} = require('./ftp.schema');
+
+// Middleware: Authentication (compatible with both auth systems)
+const requireAuth = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication required' });
+  }
+  next();
+};
+
+// Middleware: Admin role check
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'Admin access required' });
+  }
+  next();
+};
 
 /**
- * GET /api/ftp/status
- * Get FTP service status
+ * GET /ftp/status
+ * Get FTP service status (enhanced with global state + unified users)
  */
-router.get('/status', requireAuth, async (req, res, next) => {
+router.get('/status', requireAuth, async (req, res) => {
   try {
     const status = await FTPService.getStatus();
-    res.json({ success: true, data: status });
+    return res.json({ success: true, data: status });
   } catch (err) {
-    next(err);
+    logger.error('FTP status error', { error: err.message });
+    return res.status(500).json({ error: 'STATUS_ERROR', message: err.message });
   }
 });
 
 /**
- * POST /api/ftp/enable
- * Enable FTP service
+ * POST /ftp/enable
+ * Enable FTP service globally
  */
-router.post('/enable', requireAuth, requireRole('admin'), validate(enableFTPSchema), async (req, res, next) => {
+router.post('/enable', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const options = req.body;
-    const result = await FTPService.enable(options);
-    broadcast('ftp:enabled', result);
-    res.json({ success: true, message: result.message });
+    logger.info('FTP: Enable service request', { user: req.user?.id });
+    const { port, passivePortMin, passivePortMax } = req.body;
+    const result = await FTPService.enable({ port, passivePortMin, passivePortMax });
+    const status = await FTPService.getStatus();
+    return res.json({ success: true, message: result.message, data: status });
   } catch (err) {
-    next(err);
+    logger.error('FTP enable error', { error: err.message });
+    return res.status(500).json({ error: err.code || 'ENABLE_FAILED', message: err.message });
   }
 });
 
 /**
- * POST /api/ftp/disable
- * Disable FTP service
+ * POST /ftp/disable
+ * Disable FTP service globally
  */
-router.post('/disable', requireAuth, requireRole('admin'), async (req, res, next) => {
+router.post('/disable', requireAuth, requireAdmin, async (req, res) => {
   try {
+    logger.info('FTP: Disable service request', { user: req.user?.id });
     const result = await FTPService.disable();
-    broadcast('ftp:disabled', result);
-    res.json({ success: true, message: result.message });
+    return res.json({
+      success: true,
+      message: result.message,
+      data: { enabled: false, running: false, active: false }
+    });
   } catch (err) {
-    next(err);
+    logger.error('FTP disable error', { error: err.message });
+    return res.status(500).json({ error: err.code || 'DISABLE_FAILED', message: err.message });
   }
 });
 
 /**
- * POST /api/ftp/update
- * Update FTP configuration
+ * GET /ftp/users
+ * List system users that have FTP access (unified Linux users, UID >= 1000)
  */
-router.post('/update', requireAuth, requireRole('admin'), validate(updateFTPSchema), async (req, res, next) => {
-  try {
-    const { enabled, ...options } = req.body;
-    
-    if (enabled === false) {
-      const result = await FTPService.disable();
-      broadcast('ftp:updated', result);
-      res.json({ success: true, message: result.message });
-    } else if (enabled === true) {
-      const result = await FTPService.enable(options);
-      broadcast('ftp:updated', result);
-      res.json({ success: true, message: result.message });
-    } else {
-      const result = await FTPService.enable(options);
-      broadcast('ftp:updated', result);
-      res.json({ success: true, message: result.message });
-    }
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * POST /api/ftp/users
- * Add FTP user
- */
-router.post('/users', requireAuth, requireRole('admin'), validate(addFTPUserSchema), async (req, res, next) => {
-  try {
-    const { username, password, homeDir } = req.body;
-    const result = await FTPService.addUser(username, password, homeDir);
-    broadcast('ftp:user_added', result);
-    res.json({ success: true, data: result.userData, message: result.message });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * GET /api/ftp/users
- * List FTP users
- */
-router.get('/users', requireAuth, requireRole('admin'), async (req, res, next) => {
+router.get('/users', requireAuth, async (req, res) => {
   try {
     const users = FTPService.listUsers();
-    res.json({ success: true, data: users });
+    return res.json({
+      success: true,
+      data: users,
+      message: 'FTP uses system users. Manage users from the Users page.'
+    });
   } catch (err) {
-    next(err);
+    logger.error('FTP list users error', { error: err.message });
+    return res.status(500).json({ error: 'LIST_FAILED', message: err.message });
   }
 });
 
 /**
- * DELETE /api/ftp/users/:username
- * Remove FTP user
+ * POST /ftp/sync-users
+ * Manually sync per-user FTP configs based on share assignments
  */
-router.delete('/users/:username', requireAuth, requireRole('admin'), async (req, res, next) => {
+router.post('/sync-users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { username } = req.params;
-    const result = await FTPService.removeUser(username);
-    broadcast('ftp:user_removed', result);
-    res.json({ success: true, message: result.message });
+    logger.info('FTP: Manual user config sync requested', { user: req.user?.id });
+    const result = await FTPService.syncFtpUserConfigs();
+
+    // Restart vsftpd to pick up changes
+    try {
+      const { execute } = require('../../lib/executor');
+      await execute('systemctl', ['restart', 'vsftpd'], { timeout: 10000 });
+    } catch {}
+
+    return res.json({
+      success: true,
+      message: `FTP user configs synced. ${result.synced || 0} user(s) mapped to shares.`,
+      data: result
+    });
   } catch (err) {
-    next(err);
+    logger.error('FTP sync-users error', { error: err.message });
+    return res.status(500).json({ error: 'SYNC_FAILED', message: err.message });
   }
 });
 
 /**
- * POST /api/ftp/set-root
- * Set FTP root directory
+ * POST /ftp/update (compat with old frontend)
+ * Update FTP configuration
  */
-router.post('/set-root', requireAuth, requireRole('admin'), async (req, res, next) => {
+router.post('/update', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { path } = req.body;
-    const accessService = require('../../lib/access.service');
-    
-    if (!path) {
-      return res.status(400).json({
-        error: 'INVALID_INPUT',
-        message: 'Path is required'
-      });
+    const { enabled, ...options } = req.body;
+    let result;
+    if (enabled === false) {
+      result = await FTPService.disable();
+    } else {
+      result = await FTPService.enable(options);
     }
-    
-    const result = await accessService.setFtpRoot(path);
-    broadcast('ftp:root_changed', result);
-    res.ok(result);
+    return res.json({ success: true, message: result.message });
   } catch (err) {
-    next(err);
+    logger.error('FTP update error', { error: err.message });
+    return res.status(500).json({ error: 'UPDATE_FAILED', message: err.message });
   }
+});
+
+/**
+ * Error handler
+ */
+router.use((err, req, res, next) => {
+  logger.error('FTP route error', { error: err.message });
+  return res.status(500).json({ error: 'INTERNAL_ERROR', message: 'An internal error occurred' });
 });
 
 module.exports = router;

@@ -32,11 +32,14 @@ const diskService = {
   },
 
   /**
-   * Create partition on a disk (full-disk GPT)
+   * Create partition(s) on a disk
+   * @param {string} device - e.g. 'sda' or '/dev/sda'
+   * @param {string} confirm - 'YES_PARTITION_DISK'
+   * @param {object} options - { mode: 'full'|'custom'|'append', partitions: [{sizeMB}], appendSizeMB: number }
    */
-  async createPartition(device, confirm) {
+  async createPartition(device, confirm, options = {}) {
     try {
-      const response = await apiClient.post('/disk/partition/create', { device, confirm });
+      const response = await apiClient.post('/disk/partition/create', { device, confirm, ...options });
       return response.data?.data || response.data;
     } catch (error) {
       throw {

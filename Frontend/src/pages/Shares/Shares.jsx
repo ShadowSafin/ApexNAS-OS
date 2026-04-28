@@ -31,12 +31,30 @@ function ToggleSwitch({ on, onChange, disabled }) {
   );
 }
 
-// ── Service Toggle Row ───────────────────────────────────────────────
-function ServiceToggle({ label, protocol, enabled, config, onToggle, onConfigChange, children }) {
+// ── Dual-Layer Status Dot ────────────────────────────────────────────
+// 🟢 Green = global ON + share ON (accessible)
+// 🟡 Amber = share ON but global OFF (configured but not accessible)
+// ⚫ Grey  = share OFF
+function DualLayerDot({ shareEnabled, globalEnabled }) {
+  let cls = 'dual-dot dual-dot--off';      // grey
+  let title = 'Protocol disabled on this share';
+  if (shareEnabled && globalEnabled) {
+    cls = 'dual-dot dual-dot--active';      // green
+    title = 'Active — accessible over the network';
+  } else if (shareEnabled && !globalEnabled) {
+    cls = 'dual-dot dual-dot--pending';     // amber
+    title = 'Enabled on share but global service is off';
+  }
+  return <span className={cls} title={title} />;
+}
+
+// ── Service Toggle Row (with dual-layer dot) ─────────────────────────
+function ServiceToggle({ label, protocol, enabled, globalEnabled, onToggle, children }) {
   return (
     <div className={`service-toggle ${enabled ? 'service-toggle--active' : ''}`}>
       <div className="service-toggle__header">
         <span className="service-toggle__label">
+          <DualLayerDot shareEnabled={enabled} globalEnabled={globalEnabled} />
           {label}
           <span className="service-toggle__protocol">{protocol}</span>
         </span>
@@ -47,6 +65,16 @@ function ServiceToggle({ label, protocol, enabled, config, onToggle, onConfigCha
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Global Service Warning ───────────────────────────────────────────
+function GlobalServiceWarning({ protocol, servicePage }) {
+  return (
+    <div className="global-service-warning">
+      <span className="global-service-warning__icon">⚠</span>
+      <span>{protocol} service is disabled globally. Enable it on the <strong>{servicePage}</strong> page to make this share accessible.</span>
     </div>
   );
 }
@@ -73,9 +101,10 @@ function AccessEndpoint({ protocol, url, copiedKey, onCopy }) {
 //  SHARE CARD — the core UI for each share
 // ══════════════════════════════════════════════════════════════════════
 
-function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices, fetchShares }) {
+function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices, fetchShares, globalServiceState }) {
   const { copiedKey, copy } = useCopyToClipboard();
   const [saving, setSaving] = useState(false);
+  const [warnings, setWarnings] = useState([]);
 
   const smb = share.services?.smb || {};
   const nfs = share.services?.nfs || {};
@@ -84,10 +113,14 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
 
   const handleServiceToggle = async (service, enabled, extraConfig = {}) => {
     setSaving(true);
+    setWarnings([]);
     try {
       const update = {};
       update[service] = { enabled, ...extraConfig };
-      await updateServices(share.name, update);
+      const result = await updateServices(share.name, update);
+      if (result?.warnings) {
+        setWarnings(result.warnings);
+      }
     } catch { /* error handled by store */ }
     finally { setSaving(false); }
   };
@@ -103,6 +136,11 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
   };
 
   const hasEndpoints = access.smb || access.nfs || access.ftp;
+
+  // Check which protocols are on at share level but off globally
+  const smbPending = smb.enabled && !globalServiceState?.smb;
+  const nfsPending = nfs.enabled && !globalServiceState?.nfs;
+  const ftpPending = ftp.enabled && !globalServiceState?.ftp;
 
   return (
     <GlassPanel className="share-card" padding="md">
@@ -121,9 +159,9 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
 
         <div className="share-card__meta">
           <div className="service-badges">
-            <span className={`service-badge ${smb.enabled ? 'service-badge--active' : 'service-badge--inactive'}`}>SMB</span>
-            <span className={`service-badge ${nfs.enabled ? 'service-badge--active' : 'service-badge--inactive'}`}>NFS</span>
-            <span className={`service-badge ${ftp.enabled ? 'service-badge--active' : 'service-badge--inactive'}`}>FTP</span>
+            <span className={`service-badge ${smb.enabled ? (globalServiceState?.smb ? 'service-badge--active' : 'service-badge--pending') : 'service-badge--inactive'}`}>SMB</span>
+            <span className={`service-badge ${nfs.enabled ? (globalServiceState?.nfs ? 'service-badge--active' : 'service-badge--pending') : 'service-badge--inactive'}`}>NFS</span>
+            <span className={`service-badge ${ftp.enabled ? (globalServiceState?.ftp ? 'service-badge--active' : 'service-badge--pending') : 'service-badge--inactive'}`}>FTP</span>
           </div>
           <span className={`share-card__chevron ${isExpanded ? 'share-card__chevron--open' : ''}`}>▼</span>
         </div>
@@ -132,6 +170,21 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
       {/* ── Expanded Body ──────────────────────────────── */}
       {isExpanded && (
         <div className="share-card__body">
+
+          {/* ── Dual-layer warnings ────────────────────── */}
+          {warnings.length > 0 && (
+            <div className="dual-layer-warnings">
+              {warnings.map((w, i) => (
+                <div key={i} className="dual-layer-warning">{w}</div>
+              ))}
+            </div>
+          )}
+
+          {/* Persistent warnings for pending states */}
+          {smbPending && <GlobalServiceWarning protocol="SMB" servicePage="Services → SMB/NFS" />}
+          {nfsPending && <GlobalServiceWarning protocol="NFS" servicePage="Services → SMB/NFS" />}
+          {ftpPending && <GlobalServiceWarning protocol="FTP" servicePage="Services → FTP" />}
+
           <div className="share-card__grid">
 
             {/* ── LEFT COLUMN: Services + Access ───────── */}
@@ -144,6 +197,7 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
                   label="SMB / CIFS"
                   protocol="Port 445"
                   enabled={smb.enabled}
+                  globalEnabled={globalServiceState?.smb}
                   onToggle={(val) => handleServiceToggle('smb', val)}
                 >
                   <div className="service-option">
@@ -183,6 +237,7 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
                   label="NFS"
                   protocol="Port 2049"
                   enabled={nfs.enabled}
+                  globalEnabled={globalServiceState?.nfs}
                   onToggle={(val) => handleServiceToggle('nfs', val)}
                 >
                   <div className="service-option">
@@ -213,6 +268,7 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
                   label="FTP"
                   protocol="Port 21"
                   enabled={ftp.enabled}
+                  globalEnabled={globalServiceState?.ftp}
                   onToggle={(val) => handleServiceToggle('ftp', val)}
                 >
                   <div className="service-option">
@@ -238,7 +294,12 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
                   {access.ftp && <AccessEndpoint protocol="FTP" url={access.ftp} copiedKey={copiedKey} onCopy={copy} />}
                 </div>
               ) : (
-                <div className="no-endpoints">Enable a protocol above to generate access endpoints</div>
+                <div className="no-endpoints">
+                  {(smb.enabled || nfs.enabled || ftp.enabled)
+                    ? 'Enable the corresponding global service to generate access endpoints'
+                    : 'Enable a protocol above to generate access endpoints'
+                  }
+                </div>
               )}
             </div>
 
@@ -280,6 +341,7 @@ export default function Shares() {
     shares,
     sharesLoading,
     sharesError,
+    globalServiceState,
     fetchShares,
     deleteShare,
     updateServices
@@ -300,6 +362,9 @@ export default function Shares() {
 
   const displayError = error || sharesError;
 
+  // Count how many services are globally active
+  const activeServices = [globalServiceState?.smb, globalServiceState?.nfs, globalServiceState?.ftp].filter(Boolean).length;
+
   return (
     <>
       <TopBar title="Shared Folders" breadcrumbs={['Storage', 'Shares']} />
@@ -315,6 +380,14 @@ export default function Shares() {
                   ? 'Loading...'
                   : `${shares?.length || 0} share${(shares?.length || 0) !== 1 ? 's' : ''} configured`
                 }
+                {!sharesLoading && (
+                  <span className="global-services-summary">
+                    {' · '}
+                    <span className={activeServices > 0 ? 'text-accent' : 'text-muted'}>
+                      {activeServices}/3 services active
+                    </span>
+                  </span>
+                )}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -369,6 +442,7 @@ export default function Shares() {
                     onDelete={handleDelete}
                     updateServices={updateServices}
                     fetchShares={fetchShares}
+                    globalServiceState={globalServiceState}
                   />
                 </div>
               ))}
