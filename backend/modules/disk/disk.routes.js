@@ -44,7 +44,7 @@ router.post('/partition/create', requireAuth, requireRole('admin'), async (req, 
     broadcast('disk:partition_created', result);
     res.ok(result);
   } catch (err) {
-    if (['CONFIRMATION_REQUIRED', 'SYSTEM_DISK', 'DISK_MOUNTED', 'NO_FREE_SPACE', 'INVALID_MODE'].includes(err.code)) {
+    if (['CONFIRMATION_REQUIRED', 'SYSTEM_DISK', 'DISK_MOUNTED', 'NO_FREE_SPACE', 'INVALID_MODE', 'PARTITION_TOO_LARGE', 'INVALID_PARTITION_SIZE', 'PARTITION_FAILED'].includes(err.code)) {
       return res.status(400).json({ success: false, error: err.code, message: err.message });
     }
     next(err);

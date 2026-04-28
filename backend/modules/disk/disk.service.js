@@ -207,20 +207,49 @@ async function createPartition(device, confirm = '', options = {}) {
 
     } else if (mode === 'custom' && partitions.length > 0) {
       // ── Custom: wipe + multiple sized partitions ──
+
+      // Get disk size in MB for validation
+      let diskSizeMB = 0;
+      try {
+        const { stdout: sizeOut } = await execute('lsblk', ['-n', '-b', '-d', '-o', 'SIZE', fullDevice], { timeout: 5000 });
+        diskSizeMB = Math.floor(parseInt(sizeOut.trim(), 10) / (1024 * 1024));
+      } catch {
+        logger.warn('Could not determine disk size for validation', { device: fullDevice });
+      }
+
+      // Validate total partition sizes fit on disk
+      const totalRequestedMB = partitions.reduce((sum, p) => sum + (parseInt(p.sizeMB, 10) || 0), 0);
+      if (diskSizeMB > 0 && totalRequestedMB > (diskSizeMB - 1)) {
+        throw new DiskError('PARTITION_TOO_LARGE', `Total partition size (${totalRequestedMB} MB) exceeds disk capacity (${diskSizeMB - 1} MB usable)`);
+      }
+
       await execute('parted', [fullDevice, '--script', 'mklabel', 'gpt'], { timeout: 15000 });
 
       let startMB = 1; // leave 1MB for GPT header
       for (let i = 0; i < partitions.length; i++) {
-        const { sizeMB } = partitions[i];
+        const sizeMB = parseInt(partitions[i].sizeMB, 10) || 0;
         const isLast = i === partitions.length - 1;
 
-        // If last partition and sizeMB is 0 or missing, fill remaining space
-        const endStr = (!sizeMB || sizeMB <= 0 || isLast && partitions[i].fillRemaining) ? '100%' : `${startMB + sizeMB}MiB`;
+        // Last partition always fills remaining space; otherwise use explicit size
+        let endStr;
+        if (isLast) {
+          endStr = '100%';
+        } else if (sizeMB <= 0) {
+          throw new DiskError('INVALID_PARTITION_SIZE', `Partition ${i + 1} has invalid size: ${partitions[i].sizeMB}`);
+        } else {
+          endStr = `${startMB + sizeMB}MiB`;
+        }
 
-        await execute('parted', [
-          fullDevice, '--script', '--align', 'optimal',
-          'mkpart', 'primary', `${startMB}MiB`, endStr
-        ], { timeout: 15000 });
+        logger.info('Creating partition', { index: i + 1, start: `${startMB}MiB`, end: endStr, device: fullDevice });
+
+        try {
+          await execute('parted', [
+            fullDevice, '--script', '--align', 'optimal',
+            'mkpart', 'primary', `${startMB}MiB`, endStr
+          ], { timeout: 15000 });
+        } catch (partErr) {
+          throw new DiskError('PARTITION_FAILED', `Partition ${i + 1} failed: ${partErr.stderr || partErr.message}`);
+        }
 
         const partNum = i + 1;
         const partName = bareName.match(/\d$/) ? `${fullDevice}p${partNum}` : `${fullDevice}${partNum}`;
