@@ -2,23 +2,25 @@ import { useEffect, useState } from 'react';
 import TopBar from '../../components/TopBar/TopBar';
 import GlassPanel from '../../components/GlassPanel/GlassPanel';
 import Toggle from '../../components/Toggle/Toggle';
+import { useSystemStore } from '../../stores';
 import systemService from '../../services/system.service';
 import './System.css';
 
 export default function System() {
-  const [metrics, setMetrics] = useState({
-    cpu: 0,
-    memory: 0,
-    disk: 0,
-    uptime: 0,
-    loadAverage: '0.00, 0.00, 0.00'
-  });
-  const [temperature, setTemperature] = useState({ cpuTemp: 0, diskTemp: 0 });
+  // ── UNIFIED METRICS: same store + same endpoint as Dashboard ──
+  const {
+    metrics,
+    systemInfo,
+    cpuUsage,
+    memoryUsage,
+    temperature,
+    systemLoading,
+    fetchMetrics
+  } = useSystemStore();
+
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [systemInfo, setSystemInfo] = useState(null);
   const [selectedService, setSelectedService] = useState('system');
   const [settings, setSettings] = useState({
     ssh: false,
@@ -34,54 +36,27 @@ export default function System() {
     isProcessing: false
   });
 
-  /**
-   * Load system info, metrics, and logs on component mount
-   */
+  // ── Load data + auto-refresh every 3s (same as Dashboard) ──
   useEffect(() => {
-    const loadSystemData = async () => {
-      setLoading(true);
+    const loadInitial = async () => {
       try {
         setError(null);
-        const info = await systemService.getSystemInfo();
-        setSystemInfo(info);
-        await loadMetrics();
+        await fetchMetrics();
         await loadLogs('system');
       } catch (err) {
         setError(err.message || 'Failed to load system data');
-        console.error('System error:', err);
-      } finally {
-        setLoading(false);
       }
     };
+    loadInitial();
 
-    loadSystemData();
+    const interval = setInterval(() => {
+      fetchMetrics().catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [fetchMetrics]);
 
-    // Refresh metrics every 5 seconds
-    const metricsInterval = setInterval(loadMetrics, 5000);
-    return () => clearInterval(metricsInterval);
-  }, []);
-
-  /**
-   * Load system metrics
-   */
-  const loadMetrics = async () => {
-    try {
-      const [stats, temp] = await Promise.all([
-        systemService.getSystemStats(),
-        systemService.getTemperature()
-      ]);
-      setMetrics(stats);
-      setTemperature(temp);
-    } catch (err) {
-      console.error('Failed to load metrics:', err);
-    }
-  };
-
-  /**
-   * Load logs for selected service
-   */
   const loadLogs = async (service = selectedService) => {
-    setLoading(true);
+    setLogsLoading(true);
     try {
       const logsData = await systemService.getLogs({ service, limit: 50 });
       setLogs(logsData || []);
@@ -89,40 +64,21 @@ export default function System() {
       console.error(`Failed to load ${service} logs:`, err);
       setLogs([]);
     } finally {
-      setLoading(false);
+      setLogsLoading(false);
     }
   };
 
-  /**
-   * Handle service filter change
-   */
   const handleServiceChange = async (service) => {
     setSelectedService(service);
     await loadLogs(service);
   };
 
-  /**
-   * Toggle a setting
-   */
-  const toggle = (key) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  const toggle = (key) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
 
-  /**
-   * Show confirmation dialog for system actions
-   */
   const showConfirmDialog = (type) => {
-    setConfirmDialog({
-      visible: true,
-      type,
-      step: 1,
-      isProcessing: false
-    });
+    setConfirmDialog({ visible: true, type, step: 1, isProcessing: false });
   };
 
-  /**
-   * Handle confirmation dialog - step navigation
-   */
   const handleConfirmStep = async () => {
     if (confirmDialog.step === 1) {
       setConfirmDialog(prev => ({ ...prev, step: 2 }));
@@ -132,16 +88,11 @@ export default function System() {
         const confirmToken = confirmDialog.type === 'reboot' ? 'YES_REBOOT' : 'YES_SHUTDOWN';
         if (confirmDialog.type === 'reboot') {
           await systemService.reboot(confirmToken);
-        } else if (confirmDialog.type === 'shutdown') {
+        } else {
           await systemService.shutdown(confirmToken);
         }
         alert(`System ${confirmDialog.type}ing...`);
-        setConfirmDialog({
-          visible: false,
-          type: null,
-          step: 1,
-          isProcessing: false
-        });
+        setConfirmDialog({ visible: false, type: null, step: 1, isProcessing: false });
       } catch (err) {
         alert(`Failed to ${confirmDialog.type}: ${err.message}`);
         setConfirmDialog(prev => ({ ...prev, isProcessing: false }));
@@ -149,39 +100,17 @@ export default function System() {
     }
   };
 
-  /**
-   * Close confirmation dialog
-   */
   const closeConfirmDialog = () => {
     if (!confirmDialog.isProcessing) {
-      setConfirmDialog({
-        visible: false,
-        type: null,
-        step: 1,
-        isProcessing: false
-      });
+      setConfirmDialog({ visible: false, type: null, step: 1, isProcessing: false });
     }
   };
 
-  /**
-   * Handle reboot
-   */
-  const handleReboot = () => {
-    showConfirmDialog('reboot');
-  };
+  const handleReboot = () => showConfirmDialog('reboot');
+  const handleShutdown = () => showConfirmDialog('shutdown');
 
-  /**
-   * Handle shutdown
-   */
-  const handleShutdown = () => {
-    showConfirmDialog('shutdown');
-  };
-
-  /**
-   * Format bytes to readable format
-   */
   const formatBytes = (bytes) => {
-    if (!bytes && bytes !== 0) return 'N/A';
+    if (!bytes && bytes !== 0) return '—';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let size = bytes;
     let unitIndex = 0;
@@ -192,42 +121,38 @@ export default function System() {
     return `${size.toFixed(2)} ${units[unitIndex]}`;
   };
 
-  /**
-   * Format uptime seconds to readable format
-   */
-  const formatUptime = (seconds) => {
-    if (!seconds && seconds !== 0) return 'N/A';
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  };
+  // ── Derived data from UNIFIED metrics (same source as Dashboard) ──
+  const cpu = metrics?.cpu?.usage ?? cpuUsage ?? 0;
+  const mem = metrics?.memory || { total: 0, used: 0, available: 0, percent: 0 };
+  const disk = metrics?.disk || { total: 0, used: 0, available: 0, percent: 0 };
+  const temp = metrics?.temperature || temperature || { cpuTemp: 0, diskTemp: 0 };
+  const sys = metrics?.system || systemInfo || {};
+  const loadAvg = sys.loadAverage || '—';
+  const uptimeFormatted = sys.uptime || '—';
 
-  /**
-   * Progress bar component
-   */
-  const ProgressBar = ({ value, label }) => {
+  const ProgressBar = ({ value, label, subtitle, hasUsage }) => {
     const getColor = (v) => {
-      if (v < 50) return '#4CAF50';
-      if (v < 75) return '#FFC107';
-      return '#F44336';
+      if (v < 50) return '#4ade80';
+      if (v < 75) return '#fbbf24';
+      return '#f87171';
     };
+    // Show '<1%' when value rounds to 0 but there IS actual usage
+    const displayValue = (value === 0 && hasUsage) ? '<1' : `${value}`;
+    const barWidth = (value === 0 && hasUsage) ? 1 : value;
     return (
       <div style={{ marginBottom: 'var(--space-3)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</span>
-          <span style={{ fontSize: '12px', fontWeight: 'bold', color: getColor(value) }}>{value}%</span>
+          <div>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</span>
+            {subtitle && (
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '8px' }}>{subtitle}</span>
+            )}
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 'bold', color: getColor(value) }}>{displayValue}%</span>
         </div>
-        <div style={{
-          height: '8px',
-          backgroundColor: '#333',
-          borderRadius: '4px',
-          overflow: 'hidden'
-        }}>
+        <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{
-            width: `${value}%`,
+            width: `${barWidth}%`,
             height: '100%',
             backgroundColor: getColor(value),
             transition: 'width 0.3s ease'
@@ -243,7 +168,6 @@ export default function System() {
       <div className="app-layout__content">
         <div className="system-page">
 
-          {/* Error message */}
           {error && (
             <div style={{
               padding: 'var(--space-3)',
@@ -258,35 +182,48 @@ export default function System() {
             </div>
           )}
 
-          {/* System Metrics */}
+          {/* System Metrics \u2014 UNIFIED with Dashboard via useSystemStore.fetchMetrics() */}
           <div className="section animate-fade-in-up stagger-1">
             <div className="section__header">
               <h2 className="section__title">System Metrics</h2>
             </div>
             <GlassPanel variant="medium" padding="lg">
-              {metricsLoading ? (
+              {systemLoading && !metrics ? (
                 <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
                   Loading metrics...
                 </div>
               ) : (
                 <>
-                  <ProgressBar value={metrics.cpu} label="CPU Usage" />
-                  <ProgressBar value={metrics.memory} label="Memory Usage" />
-                  <ProgressBar value={metrics.disk} label="Disk Usage" />
+                  <ProgressBar
+                    value={cpu}
+                    label="CPU Usage"
+                    subtitle={sys.cpuCount ? `${sys.cpuCount} cores` : ''}
+                  />
+                  <ProgressBar
+                    value={mem.percent}
+                    label="Memory Usage"
+                    subtitle={mem.total > 0 ? `${formatBytes(mem.used)} / ${formatBytes(mem.total)}` : ''}
+                  />
+                  <ProgressBar
+                    value={disk.percent}
+                    label="Disk Filled Up"
+                    subtitle={disk.total > 0 ? `${formatBytes(disk.used)} / ${formatBytes(disk.total)}` : ''}
+                    hasUsage={disk.used > 0}
+                  />
                   <div className="info-row">
                     <span className="info-row__label">System Uptime</span>
-                    <span className="info-row__value">{formatUptime(metrics.uptime)}</span>
+                    <span className="info-row__value">{uptimeFormatted}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-row__label">Load Average (1m, 5m, 15m)</span>
-                    <span className="info-row__value">{metrics.loadAverage}</span>
+                    <span className="info-row__value">{loadAvg}</span>
                   </div>
                 </>
               )}
             </GlassPanel>
           </div>
 
-          {/* Temperature */}
+          {/* Temperature \u2014 from unified metrics */}
           <div className="section animate-fade-in-up stagger-2">
             <div className="section__header">
               <h2 className="section__title">Temperature</h2>
@@ -294,64 +231,68 @@ export default function System() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
               <GlassPanel variant="subtle" padding="md">
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temperature?.cpuTemp > 80 ? '#f87171' : temperature?.cpuTemp > 60 ? '#fbbf24' : '#4ade80' }}>
-                    {temperature?.cpuTemp || 0}°C
+                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.cpuTemp === 0 ? '#6b7280' : temp.cpuTemp > 80 ? '#f87171' : temp.cpuTemp > 60 ? '#fbbf24' : '#4ade80' }}>
+                    {temp.cpuTemp > 0 ? <>{temp.cpuTemp}{"°"}C</> : 'N/A'}
                   </div>
                   <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
                     CPU Temperature
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
-                    {temperature?.cpuTemp > 80 ? 'Critical' : temperature?.cpuTemp > 60 ? 'Warm' : 'Normal'}
+                    {temp.cpuTemp === 0 ? 'Sensor unavailable' : temp.cpuTemp > 80 ? 'Critical' : temp.cpuTemp > 60 ? 'Warm' : 'Normal'}
                   </div>
                 </div>
               </GlassPanel>
               <GlassPanel variant="subtle" padding="md">
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temperature?.diskTemp > 60 ? '#f87171' : temperature?.diskTemp > 45 ? '#fbbf24' : '#4ade80' }}>
-                    {temperature?.diskTemp || 0}°C
+                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.diskTemp === 0 ? '#6b7280' : temp.diskTemp > 60 ? '#f87171' : temp.diskTemp > 45 ? '#fbbf24' : '#4ade80' }}>
+                    {temp.diskTemp > 0 ? <>{temp.diskTemp}{"°"}C</> : 'N/A'}
                   </div>
                   <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
                     Disk Temperature
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
-                    {temperature?.diskTemp > 60 ? 'Critical' : temperature?.diskTemp > 45 ? 'Warm' : 'Normal'}
+                    {temp.diskTemp === 0 ? 'Sensor unavailable' : temp.diskTemp > 60 ? 'Critical' : temp.diskTemp > 45 ? 'Warm' : 'Normal'}
                   </div>
                 </div>
               </GlassPanel>
             </div>
           </div>
 
-          {/* General Info */}
+          {/* General Info \u2014 from unified metrics */}
           <div className="section animate-fade-in-up stagger-2">
             <div className="section__header">
               <h2 className="section__title">General Information</h2>
             </div>
             <GlassPanel variant="medium" padding="lg">
-              {loading ? (
+              {systemLoading && !sys.hostname ? (
                 <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
                   Loading system information...
                 </div>
-              ) : systemInfo ? (
+              ) : sys.hostname ? (
                 <>
                   <div className="info-row">
                     <span className="info-row__label">Hostname</span>
-                    <span className="info-row__value">{systemInfo.hostname || 'N/A'}</span>
+                    <span className="info-row__value">{sys.hostname}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-row__label">Operating System</span>
-                    <span className="info-row__value">{systemInfo.osRelease || 'N/A'}</span>
+                    <span className="info-row__value">{sys.os || '—'}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-row__label">Kernel</span>
-                    <span className="info-row__value">{systemInfo.kernel || 'N/A'}</span>
+                    <span className="info-row__value">{sys.kernel || '—'}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="info-row__label">CPU</span>
+                    <span className="info-row__value">{sys.processor || '—'}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-row__label">CPU Cores</span>
-                    <span className="info-row__value">{systemInfo.cpuCount || 'N/A'}</span>
+                    <span className="info-row__value">{sys.cpuCount || '—'}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-row__label">Total Memory</span>
-                    <span className="info-row__value">{systemInfo.totalMemory ? formatBytes(systemInfo.totalMemory) : 'N/A'}</span>
+                    <span className="info-row__value">{mem.total > 0 ? formatBytes(mem.total) : '—'}</span>
                   </div>
                 </>
               ) : (
@@ -416,18 +357,10 @@ export default function System() {
                 Control system power state. Active connections will be terminated.
               </p>
               <div className="power-actions">
-                <button 
-                  className="power-btn power-btn--warning" 
-                  id="btn-reboot"
-                  onClick={handleReboot}
-                >
+                <button className="power-btn power-btn--warning" id="btn-reboot" onClick={handleReboot}>
                   ⟳ Reboot
                 </button>
-                <button 
-                  className="power-btn power-btn--danger" 
-                  id="btn-shutdown"
-                  onClick={handleShutdown}
-                >
+                <button className="power-btn power-btn--danger" id="btn-shutdown" onClick={handleShutdown}>
                   ⏻ Shutdown
                 </button>
               </div>
@@ -441,8 +374,8 @@ export default function System() {
                 <h2 className="section__title">System Logs</h2>
                 <p className="section__subtitle">Real-time service logs</p>
               </div>
-              <select 
-                value={selectedService} 
+              <select
+                value={selectedService}
                 onChange={(e) => handleServiceChange(e.target.value)}
                 style={{
                   padding: '8px 12px',
@@ -461,7 +394,7 @@ export default function System() {
               </select>
             </div>
             <GlassPanel variant="medium" padding="md">
-              {loading ? (
+              {logsLoading ? (
                 <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
                   Loading logs...
                 </div>
@@ -469,11 +402,11 @@ export default function System() {
                 <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                   {logs.map((log, i) => (
                     <div key={i} className="log-entry">
-                      <span className="log-entry__time">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A'}</span>
+                      <span className="log-entry__time">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '—'}</span>
                       <span className={`log-entry__level log-entry__level--${(log.level || 'info').toLowerCase()}`}>
                         {log.level || 'INFO'}
                       </span>
-                      <span className="log-entry__msg">{log.message || 'N/A'}</span>
+                      <span className="log-entry__msg">{log.message || '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -490,15 +423,9 @@ export default function System() {
         {/* Confirmation Dialog */}
         {confirmDialog.visible && (
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             zIndex: 1000
           }}>
             <div style={{
@@ -513,47 +440,22 @@ export default function System() {
               <h3 style={{ fontSize: '20px', marginBottom: '16px', color: '#e91e63' }}>
                 ⚠️ {confirmDialog.type === 'reboot' ? 'Reboot System?' : 'Shutdown System?'}
               </h3>
-              
+
               {confirmDialog.step === 1 ? (
                 <>
                   <p style={{ marginBottom: '24px', color: '#ccc', fontSize: '14px' }}>
-                    {confirmDialog.type === 'reboot' 
+                    {confirmDialog.type === 'reboot'
                       ? 'This will immediately restart the system. All active connections will be terminated. Are you sure?'
                       : 'This will immediately shut down the system. This action cannot be undone without physical access. Are you sure?'
                     }
                   </p>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                      onClick={closeConfirmDialog}
-                      disabled={confirmDialog.isProcessing}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer',
-                        opacity: confirmDialog.isProcessing ? 0.5 : 1
-                      }}
-                    >
+                    <button onClick={closeConfirmDialog} disabled={confirmDialog.isProcessing}
+                      style={{ flex: 1, padding: '10px', backgroundColor: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1 }}>
                       Cancel
                     </button>
-                    <button
-                      onClick={handleConfirmStep}
-                      disabled={confirmDialog.isProcessing}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        backgroundColor: '#e91e63',
-                        border: 'none',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer',
-                        opacity: confirmDialog.isProcessing ? 0.5 : 1,
-                        fontWeight: 'bold'
-                      }}
-                    >
+                    <button onClick={handleConfirmStep} disabled={confirmDialog.isProcessing}
+                      style={{ flex: 1, padding: '10px', backgroundColor: '#e91e63', border: 'none', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1, fontWeight: 'bold' }}>
                       Yes, Continue
                     </button>
                   </div>
@@ -561,7 +463,7 @@ export default function System() {
               ) : (
                 <>
                   <p style={{ marginBottom: '8px', color: '#ff9999', fontSize: '14px', fontWeight: 'bold' }}>
-                    {confirmDialog.type === 'reboot' 
+                    {confirmDialog.type === 'reboot'
                       ? 'This is your FINAL confirmation to reboot the system.'
                       : 'This is your FINAL confirmation to shut down the system.'
                     }
@@ -570,36 +472,12 @@ export default function System() {
                     Click "Confirm" again to proceed. This action will be executed immediately.
                   </p>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                      onClick={closeConfirmDialog}
-                      disabled={confirmDialog.isProcessing}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        backgroundColor: '#333',
-                        border: '1px solid #555',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer',
-                        opacity: confirmDialog.isProcessing ? 0.5 : 1
-                      }}
-                    >
+                    <button onClick={closeConfirmDialog} disabled={confirmDialog.isProcessing}
+                      style={{ flex: 1, padding: '10px', backgroundColor: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1 }}>
                       Cancel
                     </button>
-                    <button
-                      onClick={handleConfirmStep}
-                      disabled={confirmDialog.isProcessing}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        backgroundColor: confirmDialog.isProcessing ? '#666' : '#e91e63',
-                        border: 'none',
-                        color: '#fff',
-                        borderRadius: '4px',
-                        cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold'
-                      }}
-                    >
+                    <button onClick={handleConfirmStep} disabled={confirmDialog.isProcessing}
+                      style={{ flex: 1, padding: '10px', backgroundColor: confirmDialog.isProcessing ? '#666' : '#e91e63', border: 'none', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
                       {confirmDialog.isProcessing ? 'Processing...' : 'Confirm'}
                     </button>
                   </div>
