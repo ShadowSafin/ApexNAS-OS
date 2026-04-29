@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import diskService from '../services/disk.service';
-import raidService from '../services/raid.service';
+
 import { shareService, smbService, nfsService, ftpService } from '../services/share.service';
 import systemService from '../services/system.service';
 import networkService from '../services/network.service';
@@ -16,10 +16,7 @@ export const useStorageStore = create((set, get) => ({
   disksLoading: false,
   disksError: null,
 
-  // RAID Arrays
-  raidArrays: [],
-  raidLoading: false,
-  raidError: null,
+
 
   // Disk usage
   diskUsage: [],
@@ -54,64 +51,6 @@ export const useStorageStore = create((set, get) => ({
       return diskUsage;
     } catch (error) {
       set({ diskUsageLoading: false });
-      throw error;
-    }
-  },
-
-  /**
-   * Fetch all RAID arrays
-   */
-  fetchRaidArrays: async () => {
-    set({ raidLoading: true, raidError: null });
-    try {
-      const raidArrays = await raidService.listArrays();
-      set({ raidArrays, raidLoading: false });
-      return raidArrays;
-    } catch (error) {
-      set({
-        raidError: error.message || 'Failed to fetch RAID arrays',
-        raidLoading: false
-      });
-      throw error;
-    }
-  },
-
-  /**
-   * Create a new RAID array
-   */
-  createRaidArray: async (params) => {
-    set({ raidLoading: true, raidError: null });
-    try {
-      const result = await raidService.createArray(params);
-      // Refetch arrays after creation
-      const raidArrays = await raidService.listArrays();
-      set({ raidArrays, raidLoading: false });
-      return result;
-    } catch (error) {
-      set({
-        raidError: error.message || 'Failed to create RAID array',
-        raidLoading: false
-      });
-      throw error;
-    }
-  },
-
-  /**
-   * Stop a RAID array
-   */
-  stopRaidArray: async (name) => {
-    set({ raidLoading: true, raidError: null });
-    try {
-      const result = await raidService.stopArray(name);
-      // Refetch arrays after stopping
-      const raidArrays = await raidService.listArrays();
-      set({ raidArrays, raidLoading: false });
-      return result;
-    } catch (error) {
-      set({
-        raidError: error.message || 'Failed to stop RAID array',
-        raidLoading: false
-      });
       throw error;
     }
   },

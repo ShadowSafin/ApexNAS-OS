@@ -4,6 +4,7 @@ import GlassPanel from '../../components/GlassPanel/GlassPanel';
 import StatusIndicator from '../../components/StatusIndicator/StatusIndicator';
 import filesystemService from '../../services/filesystem.service';
 import diskService from '../../services/disk.service';
+import { shareService } from '../../services/share.service';
 import './Filesystems.css';
 
 function formatBytes(bytes, decimals = 1) {
@@ -157,9 +158,33 @@ export default function Filesystems() {
     }
   };
 
-  // ── Unmount ──
+  // ── Unmount with share safety check ──
+  const [unmountDialog, setUnmountDialog] = useState({
+    visible: false,
+    mountpoint: null,
+    affectedShares: [],
+    loading: false
+  });
+
   const handleUnmount = async (mountpoint) => {
-    if (!window.confirm(`Unmount ${mountpoint}?\nThe filesystem will become inaccessible and the fstab entry will be removed.`)) return;
+    // Check for active shares on this mountpoint
+    setUnmountDialog({ visible: true, mountpoint, affectedShares: [], loading: true });
+    try {
+      const sharesData = await shareService.listShares();
+      const sharesList = sharesData?.data || sharesData?.shares || sharesData || [];
+      const affected = Array.isArray(sharesList)
+        ? sharesList.filter(s => s.path && s.path.startsWith(mountpoint))
+        : [];
+      setUnmountDialog(prev => ({ ...prev, affectedShares: affected, loading: false }));
+    } catch {
+      // If we can't fetch shares, still allow unmount with a generic warning
+      setUnmountDialog(prev => ({ ...prev, affectedShares: [], loading: false }));
+    }
+  };
+
+  const confirmUnmount = async () => {
+    const { mountpoint } = unmountDialog;
+    setUnmountDialog(prev => ({ ...prev, visible: false }));
     setActionLoading(true);
     setActionResult(null);
     try {
@@ -171,6 +196,10 @@ export default function Filesystems() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const cancelUnmount = () => {
+    setUnmountDialog({ visible: false, mountpoint: null, affectedShares: [], loading: false });
   };
 
   const getUsageColor = (percent) => {
@@ -232,7 +261,7 @@ export default function Filesystems() {
                   <div style={{ fontSize: '2rem', marginBottom: 'var(--space-3)' }}>💾</div>
                   <div style={{ fontWeight: 500, marginBottom: 'var(--space-2)', color: 'var(--text-primary)' }}>No Filesystems</div>
                   <div style={{ fontSize: 'var(--font-size-sm)' }}>
-                    Create a filesystem on a partition or RAID array, then mount it.
+                    Create a filesystem on a partition, then mount it.
                   </div>
                 </div>
               </GlassPanel>
@@ -389,6 +418,92 @@ export default function Filesystems() {
               <button className="btn btn--secondary" onClick={() => setShowMountModal(false)}>Cancel</button>
               <button className="btn btn--primary" onClick={handleMount} disabled={!mountDevice}>
                 Mount
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Unmount Confirmation Modal ── */}
+      {unmountDialog.visible && (
+        <div className="modal-overlay" onClick={cancelUnmount}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal__header">
+              <h3 className="modal__title">Unmount Filesystem</h3>
+              <button className="modal__close" onClick={cancelUnmount}>✕</button>
+            </div>
+            <div className="modal__body">
+              {unmountDialog.loading ? (
+                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                  Checking for active shares...
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                    You are about to unmount <strong style={{ color: 'var(--text-primary)' }}>{unmountDialog.mountpoint}</strong>.
+                    The filesystem will become inaccessible and the fstab entry will be removed.
+                  </div>
+
+                  {unmountDialog.affectedShares.length > 0 && (
+                    <div style={{
+                      padding: 'var(--space-3)',
+                      backgroundColor: 'rgba(239,68,68,0.1)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: 'var(--space-3)'
+                    }}>
+                      <div style={{ color: '#FCA5A5', fontWeight: 600, marginBottom: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
+                        ⚠ {unmountDialog.affectedShares.length} active share{unmountDialog.affectedShares.length > 1 ? 's' : ''} will be affected:
+                      </div>
+                      {unmountDialog.affectedShares.map((share, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                          padding: '6px var(--space-2)',
+                          backgroundColor: 'rgba(0,0,0,0.2)',
+                          borderRadius: 'var(--radius-xs)',
+                          marginBottom: '4px',
+                          fontSize: 'var(--font-size-xs)'
+                        }}>
+                          <span style={{ color: '#EF4444' }}>●</span>
+                          <span style={{ color: '#fff', fontWeight: 500 }}>{share.name}</span>
+                          <span style={{ color: 'var(--text-tertiary)' }}>→ {share.path}</span>
+                          {share.services && (
+                            <span style={{ marginLeft: 'auto', color: '#FCA5A5', fontSize: '11px' }}>
+                              {[share.services.smb?.enabled && 'SMB', share.services.nfs?.enabled && 'NFS', share.services.ftp?.enabled && 'FTP'].filter(Boolean).join(', ') || 'No protocols'}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      <div style={{ color: '#FCA5A5', fontSize: 'var(--font-size-xs)', marginTop: 'var(--space-2)' }}>
+                        These shares will become inaccessible. Clients connected via SMB/NFS/FTP may experience errors.
+                      </div>
+                    </div>
+                  )}
+
+                  {unmountDialog.affectedShares.length === 0 && (
+                    <div style={{
+                      padding: 'var(--space-3)',
+                      backgroundColor: 'rgba(16,185,129,0.1)',
+                      border: '1px solid rgba(16,185,129,0.3)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: 'var(--space-3)',
+                      color: '#6EE7B7',
+                      fontSize: 'var(--font-size-sm)'
+                    }}>
+                      ✓ No active shares found on this filesystem. Safe to unmount.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="modal__footer">
+              <button className="btn btn--secondary" onClick={cancelUnmount}>Cancel</button>
+              <button
+                className={unmountDialog.affectedShares.length > 0 ? 'btn btn--danger' : 'btn btn--primary'}
+                onClick={confirmUnmount}
+                disabled={unmountDialog.loading}
+              >
+                {unmountDialog.affectedShares.length > 0 ? 'Unmount Anyway' : 'Unmount'}
               </button>
             </div>
           </div>

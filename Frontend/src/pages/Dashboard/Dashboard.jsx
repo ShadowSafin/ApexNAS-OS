@@ -38,7 +38,7 @@ export default function Dashboard() {
   } = useSystemStore();
 
   // Storage store
-  const { disks, diskUsage, diskUsageLoading, fetchDiskUsage } = useStorageStore();
+  const { disks, diskUsage, diskUsageLoading, fetchDiskUsage, fetchDisks } = useStorageStore();
 
   // Network store
   const { networkInterfaces, networkLoading, fetchNetworkInterfaces } = useNetworkStore();
@@ -57,6 +57,7 @@ export default function Dashboard() {
           fetchMetrics(),
           fetchServices(),
           fetchDiskUsage(),
+          fetchDisks(),
           fetchNetworkInterfaces(),
           fetchAccessInfo()
         ]);
@@ -82,7 +83,7 @@ export default function Dashboard() {
       clearInterval(metricsInterval);
       clearInterval(slowInterval);
     };
-  }, [fetchMetrics, fetchServices, fetchDiskUsage, fetchNetworkInterfaces, fetchAccessInfo]);
+  }, [fetchMetrics, fetchServices, fetchDiskUsage, fetchDisks, fetchNetworkInterfaces, fetchAccessInfo]);
 
   /**
    * Manual refresh
@@ -95,6 +96,7 @@ export default function Dashboard() {
         fetchMetrics(),
         fetchServices(),
         fetchDiskUsage(),
+        fetchDisks(),
         fetchNetworkInterfaces(),
         fetchAccessInfo()
       ]);
@@ -121,6 +123,24 @@ export default function Dashboard() {
     ? Math.round((effectiveDiskUsed / effectiveDiskTotal) * 100)
     : 0;
 
+  // Check if we have disks with available usage data
+  const hasDiskUsageData = disks && disks.length > 0 && diskUsage && diskUsage.length > 0;
+  
+  // Calculate combined disk sizes from all disks
+  const combinedDiskTotal = disks?.reduce((sum, d) => sum + (d.size || 0), 0) || 0;
+  
+  // Get actual used/available from diskUsage data
+  const combinedDiskUsed = diskUsage?.reduce((sum, u) => sum + (u.used || 0), 0) || 0;
+  const combinedDiskAvailFromUsage = diskUsage?.reduce((sum, u) => sum + (u.available || 0), 0) || 0;
+  const combinedDiskAvail = combinedDiskAvailFromUsage > 0 ? combinedDiskAvailFromUsage : (combinedDiskTotal > 0 ? combinedDiskTotal - combinedDiskUsed : 0);
+  const combinedStoragePercent = combinedDiskTotal > 0 ? Math.round((combinedDiskUsed / combinedDiskTotal) * 100) : 0;
+
+  // Use diskUsage data if available, otherwise fall back to effectiveDiskTotal
+  const displayTotal = hasDiskUsageData ? combinedDiskTotal : effectiveDiskTotal;
+  const displayUsed = hasDiskUsageData ? combinedDiskUsed : effectiveDiskUsed;
+  const displayAvail = hasDiskUsageData ? combinedDiskAvail : effectiveDiskAvail;
+  const displayPercent = hasDiskUsageData ? combinedStoragePercent : storagePercent;
+
   /**
    * Copy access URL to clipboard
    */
@@ -139,6 +159,11 @@ export default function Dashboard() {
       case 'FTP': return '↗';
       default: return '◆';
     }
+  };
+
+  const getDiskPercent = (usage) => {
+    if (!usage || !usage.total || usage.total === 0) return 0;
+    return Math.round((usage.used / usage.total) * 100);
   };
 
   return (
@@ -267,16 +292,16 @@ export default function Dashboard() {
             <div className="dashboard__metrics">
               <MetricCard
                 label="Total Storage"
-                value={formatBytes(effectiveDiskTotal, 1).split(' ')[0]}
-                unit={formatBytes(effectiveDiskTotal, 1).split(' ')[1]}
+                value={formatBytes(displayTotal, 1).split(' ')[0]}
+                unit={formatBytes(displayTotal, 1).split(' ')[1]}
                 subtitle={`${disks.length || 0} disks configured`}
                 icon="⛁"
               />
               <MetricCard
                 label="Used Space"
-                value={formatBytes(effectiveDiskUsed, 1).split(' ')[0]}
-                unit={formatBytes(effectiveDiskUsed, 1).split(' ')[1]}
-                subtitle={`${storagePercent}% utilized`}
+                value={formatBytes(displayUsed, 1).split(' ')[0]}
+                unit={formatBytes(displayUsed, 1).split(' ')[1]}
+                subtitle={`${displayPercent}% utilized`}
                 icon="◉"
               />
               <MetricCard
@@ -347,7 +372,7 @@ export default function Dashboard() {
             <div className="section__header">
               <div>
                 <h2 className="section__title">Storage Capacity</h2>
-                <p className="section__subtitle">Total pool utilization</p>
+                <p className="section__subtitle">Disk utilization</p>
               </div>
             </div>
             <GlassPanel variant="medium" padding="lg">
@@ -355,24 +380,112 @@ export default function Dashboard() {
                 <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
                   Loading storage data...
                 </div>
-              ) : effectiveDiskTotal > 0 ? (
+              ) : effectiveDiskTotal > 0 || (disks && disks.length > 0) ? (
                 <>
-                  <div style={{ marginBottom: 'var(--space-4)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                      <span className="info-row__label">
-                        {formatBytes(effectiveDiskUsed)} used of {formatBytes(effectiveDiskTotal)}
-                      </span>
-                      <span className="info-row__value">{storagePercent}%</span>
+                  {/* Show all physical disks including USB, PCIe, etc. */}
+                  {disks && disks.length > 0 ? (
+                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                      {[...disks].sort((a, b) => (b.isSystem ? 1 : 0) - (a.isSystem ? 1 : 0)).map((disk) => {
+                        const diskPartitions = disk.children || [];
+                        const partitionUsage = diskPartitions.map(p => {
+                          const mountUsage = diskUsage?.find(u => u.mountpoint === p.mountpoint);
+                          return mountUsage || null;
+                        }).filter(Boolean);
+                        
+                        const totalSize = disk.size || 0;
+                        const totalUsed = partitionUsage.reduce((sum, u) => sum + (u.used || 0), 0);
+                        const totalAvailFromUsage = partitionUsage.reduce((sum, u) => sum + (u.available || 0), 0);
+                        const totalAvail = totalAvailFromUsage > 0 ? totalAvailFromUsage : (totalSize > 0 ? totalSize - totalUsed : 0);
+                        const diskPercent = totalSize > 0 ? Math.round((totalUsed / totalSize) * 100) : 0;
+                        
+                        return (
+                          <div key={disk.name} style={{ marginBottom: 'var(--space-3)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+                              <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                <span>⛁</span>
+                                /dev/{disk.name}
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginLeft: 'var(--space-2)' }}>
+                                  ({disk.transport?.toUpperCase()})
+                                </span>
+                              </span>
+                              <span className="info-row__value">
+                                {formatBytes(totalSize)}
+                              </span>
+                            </div>
+                            <div className="usage-bar" style={{ height: '8px' }}>
+                              <div
+                                className="usage-bar__fill"
+                                style={{
+                                  width: `${diskPercent}%`
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              <span>{diskPercent}% used</span>
+                              <span>{formatBytes(totalAvail)} available</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="usage-bar">
-                      <div className="usage-bar__fill" style={{ width: `${storagePercent}%` }} />
+                  ) : diskUsage && diskUsage.length > 0 ? (
+                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                      {diskUsage.map((usage, idx) => (
+                        <div key={usage.mountpoint || idx} style={{ marginBottom: 'var(--space-3)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+                            <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                              <span>⛁</span>
+                              {usage.mountpoint || `Disk ${idx + 1}`}
+                            </span>
+                            <span className="info-row__value">
+                              {formatBytes(usage.total)}
+                            </span>
+                          </div>
+                          <div className="usage-bar" style={{ height: '8px' }}>
+                            <div
+                              className="usage-bar__fill"
+                              style={{
+                                width: `${getDiskPercent(usage)}%`
+                              }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <span>{getDiskPercent(usage)}% used</span>
+                            <span>{formatBytes(usage.available)} available</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                        <span className="info-row__label">
+                          {formatBytes(effectiveDiskUsed)} used of {formatBytes(effectiveDiskTotal)}
+                        </span>
+                        <span className="info-row__value">{storagePercent}%</span>
+                      </div>
+                      <div className="usage-bar">
+                        <div className="usage-bar__fill" style={{ width: `${storagePercent}%` }} />
+                      </div>
+                    </div>
+                  )}
                   <div className="dashboard__system-info" style={{ marginTop: 'var(--space-4)' }}>
+                    <div className="info-row">
+                      <span className="info-row__label">Total Pool</span>
+                      <span className="info-row__value">
+                        {formatBytes(displayTotal)}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-row__label">Used</span>
+                      <span className="info-row__value">
+                        {formatBytes(displayUsed)}
+                      </span>
+                    </div>
                     <div className="info-row">
                       <span className="info-row__label">Available</span>
                       <span className="info-row__value">
-                        {formatBytes(effectiveDiskAvail)}
+                        {formatBytes(displayAvail)}
                       </span>
                     </div>
                     <div className="info-row">

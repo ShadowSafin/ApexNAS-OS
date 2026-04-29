@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', path: '/', icon: '⬡' },
   { section: 'Storage' },
   { label: 'Disks', path: '/storage', icon: '⛁' },
-  { label: 'RAID', path: '/raid', icon: '⧉' },
+
   { label: 'Filesystems', path: '/filesystems', icon: '⬢' },
   { section: 'Services' },
   { label: 'Shares', path: '/shares', icon: '⬡' },

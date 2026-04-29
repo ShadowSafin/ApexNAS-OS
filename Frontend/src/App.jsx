@@ -3,7 +3,7 @@ import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Storage from './pages/Storage/Storage';
-import RAID from './pages/RAID/RAID';
+
 import Filesystems from './pages/Filesystems/Filesystems';
 import Shares from './pages/Shares/Shares';
 import SMBNFS from './pages/SMBNFS/SMBNFS';
@@ -21,7 +21,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<ProtectedRoute element={<Dashboard />} />} />
           <Route path="/storage" element={<ProtectedRoute element={<Storage />} />} />
-          <Route path="/raid" element={<ProtectedRoute element={<RAID />} />} />
+
           <Route path="/filesystems" element={<ProtectedRoute element={<Filesystems />} />} />
           <Route path="/shares" element={<ProtectedRoute element={<Shares />} />} />
           <Route path="/smb-nfs" element={<ProtectedRoute element={<SMBNFS />} />} />

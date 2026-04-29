@@ -12,6 +12,7 @@ const systemRoutes = require('./modules/system/system.routes');
 const systemService = require('./modules/system/system.service');
 const diskRoutes = require('./modules/disk/disk.routes');
 const networkRoutes = require('./modules/network/network.routes');
+
 const filesystemRoutes = require('./modules/storage/filesystem.routes');
 const smbRoutes = require('./modules/smb/smb.routes');
 const nfsRoutes = require('./modules/nfs/nfs.routes');
@@ -70,6 +71,7 @@ function createApp() {
   app.use('/api/system', systemRoutes);
   app.use('/api/disk', diskRoutes);
   app.use('/api/network', networkRoutes);
+
   app.use('/api/filesystem', filesystemRoutes);
   app.use('/api/smb', smbRoutes);
   app.use('/api/nfs', nfsRoutes);
