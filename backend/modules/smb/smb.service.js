@@ -10,7 +10,10 @@
  * - User synchronization (smbpasswd)
  * - Firewall management
  * 
- * CRITICAL: No system paths exposed
+ * SECURITY: Each SMB share is at /mnt/storage/<filesystem>/<share>
+ * - Isolation enforced by path (no parent directory access)
+ * - No ".." traversal in config
+ * - "valid users" restricts access per-share
  */
 
 const fs = require('fs');
@@ -206,16 +209,32 @@ class SMBService {
     }
   }
 
-  static buildShareConfig(share) {
+static buildShareConfig(share) {
     const config = [];
     config.push(`[${share.name}]`);
     config.push(`  path = ${share.path}`);
-    config.push(`  browseable = yes`);
+    config.push(`  browsable = yes`);
     config.push(`  read only = ${share.readOnly ? 'yes' : 'no'}`);
     config.push(`  guest ok = ${share.guestAccess ? 'yes' : 'no'}`);
 
+    // SECURITY: Restrict per-share access
     if (share.validUsers && share.validUsers.length > 0) {
       config.push(`  valid users = ${share.validUsers.join(', ')}`);
+    }
+
+    // SECURITY: Force user for consistent permissions
+    if (share.forceUser) {
+      config.push(`  force user = ${share.forceUser}`);
+    }
+
+    // SECURITY: Prevent user from escaping share
+    config.push(`  wide links = no`);
+    config.push(`  unix extensions = no`);
+
+    // SECURITY: Ensure permissions in sync with share permissions
+    if (share.permissions) {
+      config.push(`  create mask = 0755`);
+      config.push(`  directory mask = 0755`);
     }
 
     if (share.forceUser) {

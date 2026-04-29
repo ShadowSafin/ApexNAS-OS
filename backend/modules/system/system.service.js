@@ -378,7 +378,7 @@ async function checkAllServicesByProcess() {
 }
 
 /**
- * Control a system service (start/stop)
+ * Control a system service (start/stop) and verify status
  */
 async function controlService(name, action) {
   const serviceMap = {
@@ -391,14 +391,22 @@ async function controlService(name, action) {
   const serviceName = serviceMap[name?.toLowerCase()] || name;
   
   return new Promise((resolve, reject) => {
-    execFile('systemctl', [action, serviceName], { timeout: 10000 }, (err, stdout, stderr) => {
+    execFile('systemctl', [action, serviceName], { timeout: 10000 }, async (err, stdout, stderr) => {
       if (err) {
         logger.warn(`Failed to ${action} service ${serviceName}:`, err.message);
         reject(new Error(`Failed to ${action} ${serviceName}: ${err.message}`));
         return;
       }
       logger.info(`Service ${serviceName} ${action}ed successfully`);
-      resolve({ success: true, service: serviceName, action });
+      
+      // Wait a moment for service to start/stop
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Verify the actual status after action
+      const currentStatus = await checkServiceStatus(serviceName);
+      logger.info(`Service ${serviceName} status after ${action}: ${currentStatus}`);
+      
+      resolve({ success: true, service: serviceName, action, status: currentStatus });
     });
   });
 }

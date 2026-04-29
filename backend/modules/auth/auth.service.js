@@ -103,5 +103,7 @@ module.exports = {
   logout,
   getUserFromToken,
   loadUsers,
-  saveUsers
+  saveUsers,
+  signAccessToken,
+  signRefreshToken
 };

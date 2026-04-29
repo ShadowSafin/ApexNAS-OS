@@ -8,6 +8,9 @@
  * - Passive mode support
  * - Global state integration via ServiceState
  * - Firewall management
+ * 
+ * SECURITY: Users are jailed via chroot_local_user=YES with per-user local_root
+ * No user can escape their assigned share directory
  */
 
 const fs = require('fs');
@@ -195,7 +198,7 @@ class FTPService {
     }
   }
 
-  /**
+/**
    * Build vsftpd configuration with per-user share jailing
    */
   static buildVsftpdConfig(options = {}) {
@@ -204,6 +207,7 @@ class FTPService {
     const passivePortMax = options.passivePortMax || 31000;
 
     return `# ApexNAS FTP Configuration — Per-User Share Jailing
+# SECURITY: Users are jailed via chroot_local_user=YES
 # Managed by NAS service — do not edit manually
 
 # Network settings
@@ -223,10 +227,10 @@ local_enable=YES
 write_enable=YES
 local_umask=022
 
-# Chroot — jail each user into their assigned share
+# SECURITY: Chroot jail — CRITICAL for isolation
 chroot_local_user=YES
 allow_writeable_chroot=YES
-# Default root for users without a per-user config
+# Default root (fallback only — per-user config overrides this)
 local_root=${STORAGE_BASE}
 
 # Per-user config — overrides local_root per user
@@ -250,6 +254,47 @@ vsftpd_log_file=/var/log/vsftpd.log
 # PAM service name
 pam_service_name=vsftpd
 `;
+  }
+
+  /**
+   * Verify per-user FTP jail is properly configured
+   */
+  static async verifyJailIsolation(username, expectedSharePath) {
+    try {
+      const userConfPath = path.join(VSFTPD_USER_CONF_DIR, username);
+      
+      if (!fs.existsSync(userConfPath)) {
+        return { valid: false, error: 'NO_USER_CONFIG', message: 'No per-user config found' };
+      }
+
+      const config = fs.readFileSync(userConfPath, 'utf8');
+      const rootMatch = config.match(/local_root=(.+)/);
+      
+      if (!rootMatch) {
+        return { valid: false, error: 'NO_LOCAL_ROOT', message: 'local_root not set' };
+      }
+
+      const configuredRoot = rootMatch[1].trim();
+      
+      // Validate path is under STORAGE_ROOT
+      if (!configuredRoot.startsWith(STORAGE_BASE)) {
+        return { valid: false, error: 'INSECURE_ROOT', message: 'Root outside storage' };
+      }
+
+      // Must exactly match expected share path
+      if (configuredRoot !== expectedSharePath) {
+        return { valid: false, error: 'PATH_MISMATCH', message: 'Configured root does not match share path' };
+      }
+
+      // Verify directory exists
+      if (!fs.existsSync(configuredRoot)) {
+        return { valid: false, error: 'PATH_NOT_FOUND', message: 'Share directory does not exist' };
+      }
+
+      return { valid: true, username, sharePath: configuredRoot };
+    } catch (err) {
+      return { valid: false, error: 'VERIFICATION_FAILED', message: err.message };
+    }
   }
 
   /**

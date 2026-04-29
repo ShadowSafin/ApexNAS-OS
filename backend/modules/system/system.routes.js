@@ -101,10 +101,112 @@ router.post('/shutdown', requireAuth, requireRole('admin'), validate(shutdownSch
 
 router.get('/access', requireAuth, async (req, res, next) => {
   try {
-    const accessService = require('../../lib/access.service');
-    const accessInfo = await accessService.generateAccessInfo();
-    res.ok(accessInfo);
+    // Fetch all dependencies
+    const networkService = require('../network/network.service');
+    const network = await networkService.getNetworkInterfaces();
+    const services = await systemService.getServices();
+    
+    // Fetch shares from share service
+    const { ShareService } = require('../share/share.service');
+    const sharesResult = await ShareService.listShares();
+    const shares = sharesResult?.shares || [];
+    
+    // Get primary IP
+    const ip = network[0]?.ip;
+    console.log("ACCESS - IP:", ip);
+    console.log("ACCESS - Services:", services);
+    console.log("ACCESS - Shares:", shares);
+    
+    // If no IP, return empty
+    if (!ip) {
+      return res.ok({ services: [] });
+    }
+    
+    // Check service status
+    const smbRunning = services.some(s => 
+      (s.name === 'SMB/CIFS' || s.name?.toLowerCase().includes('smb')) && s.status === 'running'
+    );
+    const nfsRunning = services.some(s => 
+      (s.name === 'NFS Server' || s.name?.toLowerCase().includes('nfs')) && s.status === 'running'
+    );
+    const ftpRunning = services.some(s => 
+      s.name === 'FTP' && s.status === 'running'
+    );
+    
+    console.log("ACCESS - SMB running:", smbRunning, "NFS running:", nfsRunning, "FTP running:", ftpRunning);
+    
+    const accessPoints = { services: [] };
+    
+    // SMB access points
+    if (smbRunning && shares.length > 0) {
+      for (const share of shares) {
+        if (share.path && share.path.startsWith('/mnt/storage')) {
+          accessPoints.services.push({
+            type: 'SMB',
+            name: share.name,
+            path: share.path,
+            access: `\\\\${ip}\\${share.name}`
+          });
+        }
+      }
+    }
+    
+    // FTP access point (doesn't require shares)
+    if (ftpRunning) {
+      accessPoints.services.push({
+        type: 'FTP',
+        name: 'FTP Server',
+        path: '/mnt/storage',
+        access: `ftp://${ip}`
+      });
+    }
+    
+    // NFS access points
+    if (nfsRunning && shares.length > 0) {
+      for (const share of shares) {
+        if (share.path && share.path.startsWith('/mnt/storage')) {
+          accessPoints.services.push({
+            type: 'NFS',
+            name: share.name,
+            path: share.path,
+            access: `${ip}:${share.path}`
+          });
+        }
+      }
+    }
+    
+    // If no access points yet, create based on running services even without shares
+    if (accessPoints.services.length === 0) {
+      if (smbRunning) {
+        accessPoints.services.push({
+          type: 'SMB',
+          name: 'storage',
+          path: '/mnt/storage',
+          access: `\\\\${ip}\\storage`
+        });
+      }
+      if (ftpRunning) {
+        accessPoints.services.push({
+          type: 'FTP',
+          name: 'FTP Server',
+          path: '/mnt/storage',
+          access: `ftp://${ip}`
+        });
+      }
+      if (nfsRunning) {
+        accessPoints.services.push({
+          type: 'NFS',
+          name: 'storage',
+          path: '/mnt/storage',
+          access: `${ip}:/mnt/storage`
+        });
+      }
+    }
+    
+    console.log("ACCESS - Generated:", accessPoints);
+    res.ok(accessPoints);
   } catch (err) {
+    console.error("ACCESS - Error:", err);
     next(err);
   }
 });

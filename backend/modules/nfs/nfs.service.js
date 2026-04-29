@@ -10,7 +10,11 @@
  * - Auto-detect subnet from NAS IP
  * - Firewall management
  * 
- * CRITICAL: No root squash bypass, no wildcard full access
+ * SECURITY:
+ * - Root squash is enforced (no root privilege escalation)
+ * - No wildcard access (explicit IPs only)
+ * - Export path is EXACT share path (no parent directory)
+ * - read-only option supported
  */
 
 const fs = require('fs');

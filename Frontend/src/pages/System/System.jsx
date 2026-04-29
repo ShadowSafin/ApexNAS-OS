@@ -5,6 +5,7 @@ import Toggle from '../../components/Toggle/Toggle';
 import { useSystemStore } from '../../stores';
 import systemService from '../../services/system.service';
 import networkService from '../../services/network.service';
+import authService from '../../services/auth.service';
 import './System.css';
 
 export default function System() {
@@ -43,6 +44,10 @@ export default function System() {
   const [accessPoints, setAccessPoints] = useState({ services: [] });
   const [accessLoading, setAccessLoading] = useState(false);
   const [togglingService, setTogglingService] = useState(null);
+
+  const [acct, setAcct] = useState({ cur: '', newU: '', newP: '', conf: '' });
+  const [acctMsg, setAcctMsg] = useState({ t: '', txt: '' });
+  const [acctLoad, setAcctLoad] = useState(false);
 
   // ── Load data + auto-refresh every 3s (same as Dashboard) ──
   useEffect(() => {
@@ -176,6 +181,22 @@ export default function System() {
 
   const handleReboot = () => showConfirmDialog('reboot');
   const handleShutdown = () => showConfirmDialog('shutdown');
+
+  const acctUser = async () => {
+    if (!acct.newU || !acct.cur) { setAcctMsg({t:'error',txt:'Fill all'}); return; }
+    setAcctLoad(true);
+    const r = await authService.changeUsername(acct.newU, acct.cur);
+    setAcctLoad(false);
+    setAcctMsg(r.success ? {t:'success',txt:r.message} : {t:'error',txt:r.error});
+  };
+  const acctPass = async () => {
+    if (!acct.cur || !acct.newP || !acct.conf) { setAcctMsg({t:'error',txt:'Fill all'}); return; }
+    if (acct.newP !== acct.conf) { setAcctMsg({t:'error',txt:'Mismatch'}); return; }
+    setAcctLoad(true);
+    const r = await authService.changePassword(acct.cur, acct.newP);
+    setAcctLoad(false);
+    setAcctMsg(r.success ? {t:'success',txt:r.message} : {t:'error',txt:r.error});
+  };
 
   const formatBytes = (bytes) => {
     if (!bytes && bytes !== 0) return '—';
@@ -369,92 +390,8 @@ export default function System() {
                 <GlassPanel variant="subtle" padding="md">
                   <div style={{ textAlign: 'center', color: '#999' }}>No interfaces found</div>
                 </GlassPanel>
-              )}
+)}
             </div>
-          </div>
-
-          {/* Services */}
-          <div className="section animate-fade-in-up stagger-3">
-            <div className="section__header">
-              <h2 className="section__title">Services</h2>
-              <button onClick={loadServices} disabled={servicesLoading} className="btn btn--secondary btn--sm">
-                ↻ Refresh
-              </button>
-            </div>
-            <GlassPanel variant="medium" padding="lg">
-              {servicesLoading ? (
-                <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
-              ) : sysServices.length > 0 ? (
-                <div>
-                  {sysServices.map((svc) => (
-                    <div key={svc.name} className="setting-item">
-                      <div className="setting-item__info">
-                        <span className="setting-item__label">{svc.name}</span>
-                        <span className="setting-item__desc">
-                          Port {svc.port} · {svc.status === 'running' ? 'Running' : 'Stopped'}
-                        </span>
-                      </div>
-                      <Toggle 
-                        active={svc.status === 'running'} 
-                        onChange={() => handleServiceToggle(svc.name.toLowerCase().replace('/', ''), svc.status)}
-                        disabled={togglingService === svc.name.toLowerCase().replace('/', '')}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#999' }}>No services found</div>
-              )}
-            </GlassPanel>
-          </div>
-
-          {/* Access Points */}
-          <div className="section animate-fade-in-up stagger-4">
-            <div className="section__header">
-              <h2 className="section__title">Access Points</h2>
-            </div>
-            <GlassPanel variant="medium" padding="lg">
-              {accessLoading ? (
-                <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
-              ) : accessPoints.services && accessPoints.services.length > 0 ? (
-                <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-                  {accessPoints.services.map((access, idx) => (
-                    <div key={idx} style={{
-                      padding: 'var(--space-3)',
-                      backgroundColor: 'rgba(255,255,255,0.03)',
-                      borderRadius: 'var(--radius-md)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                        <span style={{ 
-                          fontWeight: '600', 
-                          color: 'var(--primary)',
-                          fontSize: 'var(--font-size-sm)'
-                        }}>
-                          {access.type}
-                        </span>
-                      </div>
-                      {access.name && (
-                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                          {access.name}
-                        </div>
-                      )}
-                      <div style={{ 
-                        fontFamily: 'monospace', 
-                        fontSize: 'var(--font-size-sm)',
-                        color: 'var(--text-primary)',
-                        wordBreak: 'break-all'
-                      }}>
-                        {access.access}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#999' }}>
-                  No access points configured
-                </div>
-              )}
-            </GlassPanel>
           </div>
 
           {/* General Info */}
@@ -502,7 +439,81 @@ export default function System() {
             </GlassPanel>
           </div>
 
-          {/* Settings */}
+          {/* Account Settings */}
+          <div className="section animate-fade-in-up">
+            <div className="section__header">
+              <h2 className="section__title">Account Settings</h2>
+            </div>
+            <GlassPanel variant="medium" padding="lg">
+              <p className="section__subtitle" style={{ marginBottom: 'var(--space-4)' }}>
+                Change your web interface login credentials.
+              </p>
+              
+              {acctMsg.txt && (
+                <div style={{ 
+                  padding: 'var(--space-3)', 
+                  marginBottom: 'var(--space-4)', 
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: acctMsg.t === 'error' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                  color: acctMsg.t === 'error' ? '#EF4444' : '#10B981'
+                }}>
+                  {acctMsg.txt}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 'var(--space-4)' }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
+                  Change Username
+                </label>
+                <div className="form-group" style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                  <input 
+                    type="text" 
+                    className="form-input"
+                    placeholder="New Username" 
+                    value={acct.newU} 
+                    onChange={e => setAcct(p => ({...p, newU: e.target.value}))} 
+                  />
+                  <input 
+                    type="password" 
+                    className="form-input"
+                    placeholder="Current Password" 
+                    value={acct.cur} 
+                    onChange={e => setAcct(p => ({...p, cur: e.target.value}))} 
+                  />
+                  <button onClick={acctUser} disabled={acctLoad} className="btn btn--primary">
+                    Update Username
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
+                  Change Password
+                </label>
+                <div className="form-group" style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                  <input 
+                    type="password" 
+                    className="form-input"
+                    placeholder="New Password" 
+                    value={acct.newP} 
+                    onChange={e => setAcct(p => ({...p, newP: e.target.value}))} 
+                  />
+                  <input 
+                    type="password" 
+                    className="form-input"
+                    placeholder="Confirm Password" 
+                    value={acct.conf} 
+                    onChange={e => setAcct(p => ({...p, conf: e.target.value}))} 
+                  />
+                  <button onClick={acctPass} disabled={acctLoad} className="btn btn--primary">
+                    Change Password
+                  </button>
+                </div>
+              </div>
+            </GlassPanel>
+          </div>
+
+          {/* Power Management */}
           <div className="section animate-fade-in-up stagger-5">
             <div className="section__header">
               <h2 className="section__title">Settings</h2>

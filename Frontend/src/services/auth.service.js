@@ -133,6 +133,54 @@ const authService = {
     } catch (err) {
       return null;
     }
+  },
+
+  /**
+   * Change password
+   * @param {string} currentPassword
+   * @param {string} newPassword
+   * @returns {Promise<{success, message}>}
+   */
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const response = await apiClient.post('/auth/change-password', {
+        currentPassword,
+        newPassword
+      });
+      
+      return { success: true, message: response.data?.message || 'Password changed' };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || error.message || 'Password change failed'
+      };
+    }
+  },
+
+  /**
+   * Change username
+   * @param {string} newUsername
+   * @param {string} password
+   * @returns {Promise<{success, message}>}
+   */
+  async changeUsername(newUsername, password) {
+    try {
+      const response = await apiClient.post('/auth/change-username', {
+        newUsername,
+        password
+      });
+      
+      if (response.data?.data?.username) {
+        localStorage.setItem('user', JSON.stringify({ username: newUsername, role: 'admin' }));
+      }
+      
+      return { success: true, message: response.data?.message || 'Username changed' };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || error.message || 'Username change failed'
+      };
+    }
   }
 };
 

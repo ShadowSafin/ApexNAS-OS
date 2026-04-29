@@ -214,48 +214,72 @@ async function generateAccessInfo() {
   try {
     const config = loadServiceShares();
     const ip = getPrimaryIP();
+    
     logger.info('ACCESS: Using IP:', ip);
     logger.info('ACCESS: Config:', JSON.stringify(config));
     
     const accessInfo = { services: [] };
+    
+    // Get actual service status dynamically
+    const services = await getSystemServices();
+    logger.info('ACCESS: Services status:', JSON.stringify(services));
+    
+    // Check service status by name (handle different naming)
+    const smbRunning = services.some(s => 
+      (s.name === 'SMB/CIFS' || s.name?.includes('SMB')) && s.status === 'running'
+    );
+    const nfsRunning = services.some(s => 
+      (s.name === 'NFS Server' || s.name?.includes('NFS')) && s.status === 'running'
+    );
+    const ftpRunning = services.some(s => 
+      s.name === 'FTP' && s.status === 'running'
+    );
+    
+    logger.info('ACCESS: SMB running:', smbRunning, 'NFS running:', nfsRunning, 'FTP running:', ftpRunning);
 
-    // Add SMB shares
-    for (const share of config.smb) {
-      accessInfo.services.push({
-        type: 'SMB', name: share.name, path: share.path,
-        access: `\\\\${ip}\\${share.name}`
-      });
+    // Add SMB shares if SMB service is running
+    if (smbRunning && config.smb && config.smb.length > 0) {
+      for (const share of config.smb) {
+        accessInfo.services.push({
+          type: 'SMB', name: share.name, path: share.path,
+          access: `\\\\${ip}\\${share.name}`
+        });
+      }
     }
     
-    // Add NFS shares
-    for (const share of config.nfs) {
-      accessInfo.services.push({
-        type: 'NFS', name: share.name, path: share.path,
-        access: `${ip}:${share.path}`
-      });
+    // Add NFS shares if NFS service is running
+    if (nfsRunning && config.nfs && config.nfs.length > 0) {
+      for (const share of config.nfs) {
+        accessInfo.services.push({
+          type: 'NFS', name: share.name, path: share.path,
+          access: `${ip}:${share.path}`
+        });
+      }
     }
     
-    // Add FTP if root is configured
-    if (config.ftp && config.ftp.root) {
+    // Add FTP if service is running and root is configured
+    if (ftpRunning && config.ftp && config.ftp.root) {
       accessInfo.services.push({
-        type: 'FTP', path: config.ftp.root,
+        type: 'FTP', name: 'root', path: config.ftp.root,
         access: `ftp://${ip}`
       });
     }
     
-    // If no access points yet, create default ones to show the server is online
+    // If no access points yet, create demo ones based on running services
     if (accessInfo.services.length === 0) {
-      logger.info('ACCESS: No shares configured, creating demo access points');
+      logger.info('ACCESS: No access points yet, creating from service detection');
       
-      // Try to detect running services and create access points for them
-      const smbRunning = await isServiceRunning('smbd');
-      const nfsRunning = await isServiceRunning('nfs-server') || await isServiceRunning('nfsd');
-      const ftpRunning = await isServiceRunning('vsftpd');
-      
-      if (smbRunning) {
+      if (smbRunning || (!config.smb || config.smb.length === 0)) {
         accessInfo.services.push({
           type: 'SMB', name: 'storage', path: '/mnt/storage',
           access: `\\\\${ip}\\storage`
+        });
+      }
+      
+      if (ftpRunning || !config.ftp) {
+        accessInfo.services.push({
+          type: 'FTP', name: 'root', path: '/mnt/storage',
+          access: `ftp://${ip}`
         });
       }
       
@@ -263,13 +287,6 @@ async function generateAccessInfo() {
         accessInfo.services.push({
           type: 'NFS', name: 'storage', path: '/mnt/storage',
           access: `${ip}:/mnt/storage`
-        });
-      }
-      
-      if (ftpRunning) {
-        accessInfo.services.push({
-          type: 'FTP', name: 'root', path: '/mnt/storage',
-          access: `ftp://${ip}`
         });
       }
     }
@@ -280,6 +297,14 @@ async function generateAccessInfo() {
     logger.error('Failed to generate access info:', err.message);
     throw err;
   }
+}
+
+/**
+ * Get system services status from the system service
+ */
+async function getSystemServices() {
+  const systemService = require('../modules/system/system.service');
+  return await systemService.getServices();
 }
 
 /**

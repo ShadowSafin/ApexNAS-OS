@@ -159,12 +159,25 @@ class ShareService {
         return { valid: false, error: 'INVALID_NAME', message: 'Share name: 1-32 alphanumeric/underscore/hyphen characters, no spaces' };
       }
 
+      // CORE RULE: Share MUST be inside filesystem, never at filesystem root
       const fullPath = path.join(decodedBase, decodedName);
       const resolved = path.resolve(fullPath);
+
+      // Prevent creating share at filesystem root itself
+      if (resolved === path.resolve(decodedBase)) {
+        return { valid: false, error: 'INVALID_PATH', message: 'Share cannot be at filesystem root. Specify a share name.' };
+      }
 
       let canonical = resolved;
       if (fs.existsSync(resolved)) {
         try { canonical = fs.realpathSync(resolved); } catch { /* use resolved */ }
+      }
+
+      // SECURITY: Block symlink escape attempts
+      const realBase = fs.existsSync(decodedBase) ? fs.realpathSync(decodedBase) : decodedBase;
+      if (!canonical.startsWith(realBase) && !canonical.startsWith(path.resolve(decodedBase))) {
+        logger.error('SECURITY: Symlink escape attempt detected', { canonical, base: realBase });
+        return { valid: false, error: 'INVALID_PATH', message: 'Path resolves outside base directory' };
       }
 
       if (!canonical.startsWith(STORAGE_ROOT)) {
@@ -183,6 +196,44 @@ class ShareService {
       return { valid: true, path: canonical };
     } catch (err) {
       return { valid: false, error: 'INVALID_PATH', message: 'Invalid path' };
+    }
+  }
+
+  static validateFilesystemAccess(filesystemPath) {
+    try {
+      const resolved = path.resolve(filesystemPath);
+      
+      // Must exist and be a directory
+      if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+        return { valid: false, error: 'FILESYSTEM_NOT_FOUND', message: 'Filesystem does not exist' };
+      }
+
+      // Must be under STORAGE_ROOT
+      if (!resolved.startsWith(STORAGE_ROOT)) {
+        return { valid: false, error: 'INVALID_PATH', message: 'Filesystem must be under /mnt/storage' };
+      }
+
+      // Check it's a mount point or under one
+      const checkMount = () => {
+        try {
+          const { stdout } = require('child_process').execSync('findmnt -n -o SOURCE ' + resolved, { encoding: 'utf8' });
+          return stdout.trim();
+        } catch {
+          return null;
+        }
+      };
+      
+      const mountSource = checkMount();
+      const isMounted = mountSource && mountSource.length > 0;
+
+      return { 
+        valid: true, 
+        path: resolved, 
+        isMountPoint: isMounted,
+        mountSource
+      };
+    } catch (err) {
+      return { valid: false, error: 'VALIDATION_FAILED', message: err.message };
     }
   }
 
