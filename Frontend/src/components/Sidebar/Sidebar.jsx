@@ -40,7 +40,7 @@ export default function Sidebar() {
       <div className="sidebar__header">
         <div className="sidebar__logo">N</div>
         <div>
-          <div className="sidebar__title">NAS-OS</div>
+          <div className="sidebar__title">ApexNAS</div>
           <div className="sidebar__subtitle">System Manager</div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export default function Sidebar() {
             Logout
           </button>
         </div>
-        <span className="sidebar__version">NAS-OS v1.0.0</span>
+        <span className="sidebar__version">ApexNAS v1.0.0</span>
       </div>
     </aside>
   );

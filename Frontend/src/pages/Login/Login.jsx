@@ -36,7 +36,7 @@ export default function Login() {
         <div className="login-header">
           <div className="login-logo">⬡</div>
           <div className="login-branding">
-            <h1 className="login-title">NAS-OS</h1>
+            <h1 className="login-title">ApexNAS</h1>
             <p className="login-subtitle">Storage Management System</p>
           </div>
         </div>

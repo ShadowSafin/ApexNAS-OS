@@ -1,7 +1,7 @@
 {
-  "name": "nas-frontend",
+  "name": "apexnas-frontend",
   "version": "1.0.0",
-  "description": "",
+  "description": "ApexNAS Frontend",
   "private": true,
   "type": "module",
   "scripts": {

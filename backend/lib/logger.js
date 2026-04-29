@@ -17,7 +17,7 @@ const consoleTransport = new transports.Console({
 });
 
 const fileTransport = new transports.DailyRotateFile({
-  filename: path.join(config.logDir, 'nasos-%DATE%.log'),
+  filename: path.join(config.logDir, 'apexnas-%DATE%.log'),
   datePattern: 'YYYY-MM-DD',
   maxFiles: '14d',
   zippedArchive: false,

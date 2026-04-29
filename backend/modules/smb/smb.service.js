@@ -239,7 +239,7 @@ class SMBService {
     try {
       const globalSection = `[global]
   workgroup = WORKGROUP
-  server string = NAS-OS File Server
+  server string = ApexNAS File Server
   security = user
   map to guest = never
   bind interfaces only = no

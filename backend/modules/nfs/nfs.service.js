@@ -316,7 +316,7 @@ class NFSService {
       logger.info('Updating NFS exports', { count: exports.length });
 
       // Build exports content with header
-      const header = '# NAS-OS NFS Exports — managed by NAS service\n# Do not edit manually\n';
+      const header = '# ApexNAS NFS Exports — managed by NAS service\n# Do not edit manually\n';
       const newExports = exports.map(exp => this.buildExportLine(exp.path, exp.clients)).join('\n');
       const finalContent = header + '\n' + newExports + '\n';
 

@@ -129,7 +129,7 @@ function info() {
     totalMemory: os.totalmem(),
     freeMemory: os.freemem(),
     cpuCount: parseCpuCount(),
-    nasosVersion: getPackageVersion()
+    apexnasVersion: getPackageVersion()
   };
 }
 

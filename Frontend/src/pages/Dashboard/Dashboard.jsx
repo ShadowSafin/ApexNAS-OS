@@ -191,7 +191,7 @@ export default function Dashboard() {
             <div className="section__header">
               <div>
                 <h2 className="section__title">System Health</h2>
-                <p className="section__subtitle">Overview of your NAS system status</p>
+                <p className="section__subtitle">Overview of your ApexNAS system status</p>
               </div>
             </div>
             <GlassPanel variant="medium" padding="lg">

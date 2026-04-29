@@ -453,7 +453,7 @@ class AppInstallerService {
 
         https.get(url, {
           headers: {
-            'User-Agent': 'NAS-OS/1.0'
+            'User-Agent': 'ApexNAS/1.0'
           },
           timeout: 10000
         }, (res) => {

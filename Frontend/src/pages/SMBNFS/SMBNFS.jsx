@@ -166,7 +166,7 @@ export default function SMBNFS() {
               </div>
               <div className="info-row">
                 <span className="info-row__label">Server String</span>
-                <span className="info-row__value">{smbStatus?.serverString || 'NAS-OS File Server'}</span>
+                <span className="info-row__value">{smbStatus?.serverString || 'ApexNAS File Server'}</span>
               </div>
               <div className="info-row">
                 <span className="info-row__label">Active Shares</span>

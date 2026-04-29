@@ -11,7 +11,7 @@ if (fs.existsSync(usersFile)) {
   process.exit(0);
 }
 
-const passwordHash = bcrypt.hashSync('nasos_admin', 12);
+const passwordHash = bcrypt.hashSync('apexnas_admin', 12);
 
 const user = {
   id: uuidv4(),

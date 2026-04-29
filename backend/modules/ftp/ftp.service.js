@@ -203,7 +203,7 @@ class FTPService {
     const passivePortMin = options.passivePortMin || 30000;
     const passivePortMax = options.passivePortMax || 31000;
 
-    return `# NAS-OS FTP Configuration — Per-User Share Jailing
+    return `# ApexNAS FTP Configuration — Per-User Share Jailing
 # Managed by NAS service — do not edit manually
 
 # Network settings
@@ -323,7 +323,7 @@ pam_service_name=vsftpd
         // Use the first FTP-enabled share as the user's root
         const share = ftpShares[0];
         const userConfPath = path.join(VSFTPD_USER_CONF_DIR, user.username);
-        const config = `# FTP config for user: ${user.username}\n# Managed by NAS-OS — do not edit manually\nlocal_root=${share.path}\nwrite_enable=YES\n`;
+        const config = `# FTP config for user: ${user.username}\n# Managed by ApexNAS — do not edit manually\nlocal_root=${share.path}\nwrite_enable=YES\n`;
 
         try {
           fs.writeFileSync(userConfPath, config, { mode: 0o644 });
