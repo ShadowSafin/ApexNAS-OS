@@ -11,8 +11,10 @@ const networkService = {
   async getNetworkInterfaces() {
     try {
       const response = await apiClient.get('/network/interfaces');
-      return response.data || [];
+      // Backend wraps in { success, data } - extract data directly
+      return response.data?.data || response.data || [];
     } catch (error) {
+      console.error('Network service error:', error);
       throw {
         error: 'FETCH_NETWORK_INTERFACES_FAILED',
         message: error.response?.data?.message || error.message,
@@ -26,7 +28,7 @@ const networkService = {
   async getNetworkStats() {
     try {
       const response = await apiClient.get('/network/stats');
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       throw {
         error: 'FETCH_NETWORK_STATS_FAILED',

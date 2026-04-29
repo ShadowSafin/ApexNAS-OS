@@ -214,20 +214,28 @@ async function generateAccessInfo() {
   try {
     const config = loadServiceShares();
     const ip = getPrimaryIP();
+    logger.info('ACCESS: Using IP:', ip);
+    logger.info('ACCESS: Config:', JSON.stringify(config));
+    
     const accessInfo = { services: [] };
 
+    // Add SMB shares
     for (const share of config.smb) {
       accessInfo.services.push({
         type: 'SMB', name: share.name, path: share.path,
         access: `\\\\${ip}\\${share.name}`
       });
     }
+    
+    // Add NFS shares
     for (const share of config.nfs) {
       accessInfo.services.push({
         type: 'NFS', name: share.name, path: share.path,
         access: `${ip}:${share.path}`
       });
     }
+    
+    // Add FTP if root is configured
     if (config.ftp && config.ftp.root) {
       accessInfo.services.push({
         type: 'FTP', path: config.ftp.root,
@@ -235,11 +243,61 @@ async function generateAccessInfo() {
       });
     }
     
+    // If no access points yet, create default ones to show the server is online
+    if (accessInfo.services.length === 0) {
+      logger.info('ACCESS: No shares configured, creating demo access points');
+      
+      // Try to detect running services and create access points for them
+      const smbRunning = await isServiceRunning('smbd');
+      const nfsRunning = await isServiceRunning('nfs-server') || await isServiceRunning('nfsd');
+      const ftpRunning = await isServiceRunning('vsftpd');
+      
+      if (smbRunning) {
+        accessInfo.services.push({
+          type: 'SMB', name: 'storage', path: '/mnt/storage',
+          access: `\\\\${ip}\\storage`
+        });
+      }
+      
+      if (nfsRunning) {
+        accessInfo.services.push({
+          type: 'NFS', name: 'storage', path: '/mnt/storage',
+          access: `${ip}:/mnt/storage`
+        });
+      }
+      
+      if (ftpRunning) {
+        accessInfo.services.push({
+          type: 'FTP', name: 'root', path: '/mnt/storage',
+          access: `ftp://${ip}`
+        });
+      }
+    }
+    
+    logger.info('ACCESS: Generated access points:', JSON.stringify(accessInfo));
     return accessInfo;
   } catch (err) {
     logger.error('Failed to generate access info:', err.message);
     throw err;
   }
+}
+
+/**
+ * Quick check if a service is running
+ */
+async function isServiceRunning(serviceName) {
+  return new Promise((resolve) => {
+    execFile('systemctl', ['is-active', serviceName], { timeout: 3000 }, (err, stdout) => {
+      if (!err && stdout.trim() === 'active') {
+        return resolve(true);
+      }
+      
+      // Fallback to process check
+      execFile('pgrep', ['-f', serviceName], { timeout: 3000 }, (err2, stdout2) => {
+        resolve(!err2 && stdout2.trim().length > 0);
+      });
+    });
+  });
 }
 
 function getServiceShares() {

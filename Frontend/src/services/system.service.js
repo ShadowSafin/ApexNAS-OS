@@ -86,8 +86,10 @@ const systemService = {
   async getServices() {
     try {
       const response = await apiClient.get('/system/services');
-      return response.data || [];
+      // Backend wraps in { success, data }
+      return response.data?.data || response.data || [];
     } catch (error) {
+      console.error('Get services error:', error);
       throw {
         error: 'FETCH_SERVICES_FAILED',
         message: error.response?.data?.message || error.message,
@@ -178,6 +180,55 @@ const systemService = {
     } catch (error) {
       throw {
         error: 'FETCH_METRICS_FAILED',
+        message: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  /**
+   * Start a system service
+   * @param {string} name - Service name (smb, nfs, ftp, ssh)
+   */
+  async startService(name) {
+    try {
+      const response = await apiClient.post(`/system/service/${name}/start`);
+      return response.data;
+    } catch (error) {
+      throw {
+        error: 'START_SERVICE_FAILED',
+        message: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  /**
+   * Stop a system service
+   * @param {string} name - Service name (smb, nfs, ftp, ssh)
+   */
+  async stopService(name) {
+    try {
+      const response = await apiClient.post(`/system/service/${name}/stop`);
+      return response.data;
+    } catch (error) {
+      throw {
+        error: 'STOP_SERVICE_FAILED',
+        message: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  /**
+   * Get access points for shares and services
+   */
+  async getAccessPoints() {
+    try {
+      const response = await apiClient.get('/system/access');
+      // Backend wraps in { success, data }
+      return response.data?.data || response.data || { services: [] };
+    } catch (error) {
+      console.error('Get access points error:', error);
+      throw {
+        error: 'FETCH_ACCESS_POINTS_FAILED',
         message: error.response?.data?.message || error.message,
       };
     }

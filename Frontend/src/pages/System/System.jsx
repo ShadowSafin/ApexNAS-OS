@@ -4,6 +4,7 @@ import GlassPanel from '../../components/GlassPanel/GlassPanel';
 import Toggle from '../../components/Toggle/Toggle';
 import { useSystemStore } from '../../stores';
 import systemService from '../../services/system.service';
+import networkService from '../../services/network.service';
 import './System.css';
 
 export default function System() {
@@ -35,6 +36,13 @@ export default function System() {
     step: 1,
     isProcessing: false
   });
+  const [networkInterfaces, setNetworkInterfaces] = useState([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
+  const [sysServices, setSysServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [accessPoints, setAccessPoints] = useState({ services: [] });
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [togglingService, setTogglingService] = useState(null);
 
   // ── Load data + auto-refresh every 3s (same as Dashboard) ──
   useEffect(() => {
@@ -43,6 +51,9 @@ export default function System() {
         setError(null);
         await fetchMetrics();
         await loadLogs('system');
+        await loadNetwork();
+        await loadServices();
+        await loadAccessPoints();
       } catch (err) {
         setError(err.message || 'Failed to load system data');
       }
@@ -54,6 +65,63 @@ export default function System() {
     }, 3000);
     return () => clearInterval(interval);
   }, [fetchMetrics]);
+
+  const loadNetwork = async () => {
+    setNetworkLoading(true);
+    try {
+      const data = await networkService.getNetworkInterfaces();
+      console.log('NETWORK DATA:', data);
+      setNetworkInterfaces(data || []);
+    } catch (err) {
+      console.error('Failed to load network interfaces:', err);
+    } finally {
+      setNetworkLoading(false);
+    }
+  };
+
+  const loadServices = async () => {
+    setServicesLoading(true);
+    try {
+      const data = await systemService.getServices();
+      console.log('SERVICES DATA:', data);
+      setSysServices(data || []);
+    } catch (err) {
+      console.error('Failed to load services:', err);
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
+  const loadAccessPoints = async () => {
+    setAccessLoading(true);
+    try {
+      const data = await systemService.getAccessPoints();
+      console.log('ACCESS DATA:', data);
+      setAccessPoints(data || { services: [] });
+    } catch (err) {
+      console.error('Failed to load access points:', err);
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const handleServiceToggle = async (serviceName, currentStatus) => {
+    const action = currentStatus === 'running' ? 'stop' : 'start';
+    setTogglingService(serviceName);
+    try {
+      if (action === 'start') {
+        await systemService.startService(serviceName);
+      } else {
+        await systemService.stopService(serviceName);
+      }
+      await loadServices();
+      await loadAccessPoints();
+    } catch (err) {
+      alert(`Failed to ${action} ${serviceName}: ${err.message}`);
+    } finally {
+      setTogglingService(null);
+    }
+  };
 
   const loadLogs = async (service = selectedService) => {
     setLogsLoading(true);
@@ -258,8 +326,139 @@ export default function System() {
             </div>
           </div>
 
-          {/* General Info \u2014 from unified metrics */}
+          {/* Network Interfaces */}
           <div className="section animate-fade-in-up stagger-2">
+            <div className="section__header">
+              <h2 className="section__title">Network Interfaces</h2>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+              {networkLoading ? (
+                <GlassPanel variant="subtle" padding="md">
+                  <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
+                </GlassPanel>
+              ) : networkInterfaces.length > 0 ? (
+                networkInterfaces.map((iface) => (
+                  <GlassPanel key={iface.name} variant="subtle" padding="md">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                      <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{iface.name}</span>
+                      <span style={{
+                        fontSize: 'var(--font-size-xs)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: iface.status === 'up' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: iface.status === 'up' ? '#10B981' : '#EF4444'
+                      }}>
+                        {iface.status?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-row__label">IP Address</span>
+                      <span className="info-row__value">{iface.ip}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-row__label">MAC Address</span>
+                      <span className="info-row__value" style={{ fontSize: 'var(--font-size-xs)' }}>{iface.mac}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-row__label">Speed</span>
+                      <span className="info-row__value">{iface.speed || 'N/A'}</span>
+                    </div>
+                  </GlassPanel>
+                ))
+              ) : (
+                <GlassPanel variant="subtle" padding="md">
+                  <div style={{ textAlign: 'center', color: '#999' }}>No interfaces found</div>
+                </GlassPanel>
+              )}
+            </div>
+          </div>
+
+          {/* Services */}
+          <div className="section animate-fade-in-up stagger-3">
+            <div className="section__header">
+              <h2 className="section__title">Services</h2>
+              <button onClick={loadServices} disabled={servicesLoading} className="btn btn--secondary btn--sm">
+                ↻ Refresh
+              </button>
+            </div>
+            <GlassPanel variant="medium" padding="lg">
+              {servicesLoading ? (
+                <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
+              ) : sysServices.length > 0 ? (
+                <div>
+                  {sysServices.map((svc) => (
+                    <div key={svc.name} className="setting-item">
+                      <div className="setting-item__info">
+                        <span className="setting-item__label">{svc.name}</span>
+                        <span className="setting-item__desc">
+                          Port {svc.port} · {svc.status === 'running' ? 'Running' : 'Stopped'}
+                        </span>
+                      </div>
+                      <Toggle 
+                        active={svc.status === 'running'} 
+                        onChange={() => handleServiceToggle(svc.name.toLowerCase().replace('/', ''), svc.status)}
+                        disabled={togglingService === svc.name.toLowerCase().replace('/', '')}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999' }}>No services found</div>
+              )}
+            </GlassPanel>
+          </div>
+
+          {/* Access Points */}
+          <div className="section animate-fade-in-up stagger-4">
+            <div className="section__header">
+              <h2 className="section__title">Access Points</h2>
+            </div>
+            <GlassPanel variant="medium" padding="lg">
+              {accessLoading ? (
+                <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
+              ) : accessPoints.services && accessPoints.services.length > 0 ? (
+                <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+                  {accessPoints.services.map((access, idx) => (
+                    <div key={idx} style={{
+                      padding: 'var(--space-3)',
+                      backgroundColor: 'rgba(255,255,255,0.03)',
+                      borderRadius: 'var(--radius-md)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                        <span style={{ 
+                          fontWeight: '600', 
+                          color: 'var(--primary)',
+                          fontSize: 'var(--font-size-sm)'
+                        }}>
+                          {access.type}
+                        </span>
+                      </div>
+                      {access.name && (
+                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          {access.name}
+                        </div>
+                      )}
+                      <div style={{ 
+                        fontFamily: 'monospace', 
+                        fontSize: 'var(--font-size-sm)',
+                        color: 'var(--text-primary)',
+                        wordBreak: 'break-all'
+                      }}>
+                        {access.access}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999' }}>
+                  No access points configured
+                </div>
+              )}
+            </GlassPanel>
+          </div>
+
+          {/* General Info */}
+          <div className="section animate-fade-in-up stagger-5">
             <div className="section__header">
               <h2 className="section__title">General Information</h2>
             </div>
@@ -304,7 +503,7 @@ export default function System() {
           </div>
 
           {/* Settings */}
-          <div className="section animate-fade-in-up stagger-3">
+          <div className="section animate-fade-in-up stagger-5">
             <div className="section__header">
               <h2 className="section__title">Settings</h2>
             </div>

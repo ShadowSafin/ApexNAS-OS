@@ -109,4 +109,24 @@ router.get('/access', requireAuth, async (req, res, next) => {
   }
 });
 
+router.post('/service/:name/start', requireAuth, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { name } = req.params;
+    const result = await systemService.controlService(name, 'start');
+    res.ok(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/service/:name/stop', requireAuth, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { name } = req.params;
+    const result = await systemService.controlService(name, 'stop');
+    res.ok(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

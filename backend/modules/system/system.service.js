@@ -250,13 +250,155 @@ async function diskUsage() {
 }
 
 /**
- * Check service status using systemctl
+ * Check service status using systemctl with fallback to process detection
  */
 async function checkServiceStatus(serviceName) {
+  // Try systemctl first
   return new Promise((resolve) => {
     execFile('systemctl', ['is-active', serviceName], { timeout: 5000 }, (err, stdout) => {
-      const status = stdout.trim() === 'active' ? 'running' : 'stopped';
-      resolve(status);
+      if (!err && stdout) {
+        const status = stdout.trim() === 'active' ? 'running' : 'stopped';
+        return resolve(status);
+      }
+      
+      // Fallback: Try process detection
+      checkServiceByProcess(serviceName).then(resolve).catch(() => resolve('unknown'));
+    });
+  });
+}
+
+/**
+ * Fallback: Check if service process is running
+ */
+async function checkServiceByProcess(serviceName) {
+  const processMap = {
+    'smb': 'smbd',
+    'nfs-server': 'nfsd',
+    'vsftpd': 'vsftpd',
+    'ssh': 'sshd'
+  };
+  
+  const processName = processMap[serviceName] || serviceName;
+  
+  return new Promise((resolve) => {
+    execFile('ps', ['aux'], { timeout: 5000 }, (err, stdout) => {
+      if (err) {
+        resolve('stopped');
+        return;
+      }
+      
+      // Check if process is running (look for the process name, not grep itself)
+      const lines = stdout.split('\n');
+      const found = lines.some(line => 
+        line.includes(processName) && !line.includes('grep')
+      );
+      
+      resolve(found ? 'running' : 'stopped');
+    });
+  });
+}
+
+/**
+ * Get system services status with robust fallback
+ */
+async function getServices() {
+  logger.info('SERVICES: Starting service detection');
+  
+  try {
+    // Try systemctl detection
+    const [smbStatus, nfsStatus, ftpStatus, sshStatus] = await Promise.all([
+      checkServiceStatus('smb'),
+      checkServiceStatus('nfs-server'),
+      checkServiceStatus('vsftpd'),
+      checkServiceStatus('ssh')
+    ]);
+
+    const services = [
+      { name: 'SMB/CIFS', status: smbStatus, port: 445 },
+      { name: 'NFS Server', status: nfsStatus, port: 2049 },
+      { name: 'FTP', status: ftpStatus, port: 21 },
+      { name: 'SSH', status: sshStatus, port: 22 }
+    ];
+    
+    logger.info('SERVICES: Raw output:', services);
+    
+    // If all return unknown, try process detection fallback
+    if (services.every(s => s.status === 'unknown')) {
+      logger.info('SERVICES: Trying process detection fallback');
+      const processStatus = await checkAllServicesByProcess();
+      if (processStatus.length > 0) {
+        return processStatus;
+      }
+    }
+    
+    return services;
+  } catch (error) {
+    logger.warn('SERVICES: Failed with error:', error.message, '- trying process fallback');
+    
+    // Fallback: Try process detection
+    return await checkAllServicesByProcess();
+  }
+}
+
+/**
+ * Fallback: Detect all services by process
+ */
+async function checkAllServicesByProcess() {
+  return new Promise((resolve) => {
+    execFile('ps', ['aux'], { timeout: 5000 }, (err, stdout) => {
+      if (err) {
+        logger.warn('SERVICES: Process detection failed:', err.message);
+        return resolve([
+          { name: 'SMB/CIFS', status: 'unknown', port: 445 },
+          { name: 'NFS Server', status: 'unknown', port: 2049 },
+          { name: 'FTP', status: 'unknown', port: 21 },
+          { name: 'SSH', status: 'unknown', port: 22 }
+        ]);
+      }
+
+      const lines = stdout.split('\n');
+      
+      const hasSmb = lines.some(l => l.includes('smbd') && !l.includes('grep'));
+      const hasNfs = lines.some(l => (l.includes('nfsd') || l.includes('rpc.nfsd')) && !l.includes('grep'));
+      const hasFtp = lines.some(l => l.includes('vsftpd') && !l.includes('grep'));
+      const hasSsh = lines.some(l => l.includes('sshd') && !l.includes('grep'));
+
+      const services = [
+        { name: 'SMB/CIFS', status: hasSmb ? 'running' : 'stopped', port: 445 },
+        { name: 'NFS Server', status: hasNfs ? 'running' : 'stopped', port: 2049 },
+        { name: 'FTP', status: hasFtp ? 'running' : 'stopped', port: 21 },
+        { name: 'SSH', status: hasSsh ? 'running' : 'stopped', port: 22 }
+      ];
+      
+      logger.info('SERVICES: Process detection result:', services);
+      
+      resolve(services);
+    });
+  });
+}
+
+/**
+ * Control a system service (start/stop)
+ */
+async function controlService(name, action) {
+  const serviceMap = {
+    'smb': 'smbd',
+    'nfs': 'nfs-server',
+    'ftp': 'vsftpd',
+    'ssh': 'ssh'
+  };
+  
+  const serviceName = serviceMap[name?.toLowerCase()] || name;
+  
+  return new Promise((resolve, reject) => {
+    execFile('systemctl', [action, serviceName], { timeout: 10000 }, (err, stdout, stderr) => {
+      if (err) {
+        logger.warn(`Failed to ${action} service ${serviceName}:`, err.message);
+        reject(new Error(`Failed to ${action} ${serviceName}: ${err.message}`));
+        return;
+      }
+      logger.info(`Service ${serviceName} ${action}ed successfully`);
+      resolve({ success: true, service: serviceName, action });
     });
   });
 }
@@ -501,6 +643,7 @@ module.exports = {
   memoryUsage,
   diskUsage,
   getServices,
+  controlService,
   getLogs,
   getTemperature,
   reboot,
