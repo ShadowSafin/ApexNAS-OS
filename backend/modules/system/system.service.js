@@ -448,6 +448,53 @@ async function getServices() {
 async function getLogs(options = {}) {
   const { service = 'system', limit = 100, since, until } = options;
 
+  if (service === 'apexnas') {
+    const config = require('../../config');
+    try {
+      if (!fs.existsSync(config.logDir)) return [];
+      const files = fs.readdirSync(config.logDir)
+        .filter(f => f.startsWith('apexnas-') && f.endsWith('.log'))
+        .sort().reverse();
+        
+      if (files.length === 0) return [];
+      
+      const latestFile = path.join(config.logDir, files[0]);
+      const content = fs.readFileSync(latestFile, 'utf-8');
+      const lines = content.split('\n').filter(Boolean);
+      
+      const logs = lines.map(line => {
+        try {
+          const entry = JSON.parse(line);
+          return {
+            timestamp: entry.timestamp || new Date().toISOString(),
+            service: 'APEXNAS',
+            level: (entry.level || 'INFO').toUpperCase(),
+            message: entry.message || '',
+            unit: 'apexnas-backend'
+          };
+        } catch(e) {
+          return null;
+        }
+      }).filter(Boolean);
+      
+      let filtered = logs;
+      if (since) {
+        const sinceDate = new Date(since).getTime();
+        filtered = filtered.filter(l => new Date(l.timestamp).getTime() >= sinceDate);
+      }
+      if (until) {
+        const untilDate = new Date(until).getTime();
+        filtered = filtered.filter(l => new Date(l.timestamp).getTime() <= untilDate);
+      }
+      
+      // Return the most recent logs first, up to the limit
+      return filtered.slice(-limit).reverse();
+    } catch(err) {
+      logger.warn('Failed to read apexnas logs:', err.message);
+      return [];
+    }
+  }
+
   // Map service names to journalctl units
   const serviceMap = {
     system: null, // System logs

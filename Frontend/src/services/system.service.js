@@ -111,7 +111,7 @@ const systemService = {
       if (until) params.append('until', until);
 
       const response = await apiClient.get(`/system/logs?${params.toString()}`);
-      return response.data || [];
+      return response.data?.data || response.data || [];
     } catch (error) {
       throw {
         error: 'FETCH_LOGS_FAILED',

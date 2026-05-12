@@ -23,7 +23,11 @@ export default function System() {
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedService, setSelectedService] = useState('system');
+  const [selectedService, setSelectedService] = useState('apexnas');
+  const [logSeverity, setLogSeverity] = useState('ALL');
+  const [logSearch, setLogSearch] = useState('');
+  const [logAutoRefresh, setLogAutoRefresh] = useState(false);
+  const [logLimit, setLogLimit] = useState(100);
   const [settings, setSettings] = useState({
     ssh: false,
     notifications: false,
@@ -55,7 +59,7 @@ export default function System() {
       try {
         setError(null);
         await fetchMetrics();
-        await loadLogs('system');
+        await loadLogs('apexnas', 100);
         await loadNetwork();
         await loadServices();
         await loadAccessPoints();
@@ -70,6 +74,17 @@ export default function System() {
     }, 3000);
     return () => clearInterval(interval);
   }, [fetchMetrics]);
+
+  // Auto-refresh logs
+  useEffect(() => {
+    let interval;
+    if (logAutoRefresh) {
+      interval = setInterval(() => {
+        loadLogs(selectedService, logLimit, false); // false = don't show loading spinner
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [logAutoRefresh, selectedService, logLimit]);
 
   const loadNetwork = async () => {
     setNetworkLoading(true);
@@ -128,22 +143,27 @@ export default function System() {
     }
   };
 
-  const loadLogs = async (service = selectedService) => {
-    setLogsLoading(true);
+  const loadLogs = async (service = selectedService, limit = logLimit, showLoading = true) => {
+    if (showLoading) setLogsLoading(true);
     try {
-      const logsData = await systemService.getLogs({ service, limit: 50 });
+      const logsData = await systemService.getLogs({ service, limit });
       setLogs(logsData || []);
     } catch (err) {
       console.error(`Failed to load ${service} logs:`, err);
-      setLogs([]);
+      if (showLoading) setLogs([]);
     } finally {
-      setLogsLoading(false);
+      if (showLoading) setLogsLoading(false);
     }
   };
 
   const handleServiceChange = async (service) => {
     setSelectedService(service);
-    await loadLogs(service);
+    await loadLogs(service, logLimit, true);
+  };
+  
+  const handleLimitChange = async (limit) => {
+    setLogLimit(limit);
+    await loadLogs(selectedService, limit, true);
   };
 
   const toggle = (key) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -250,6 +270,12 @@ export default function System() {
       </div>
     );
   };
+
+  const filteredLogs = logs.filter(log => {
+    if (logSeverity !== 'ALL' && log.level !== logSeverity) return false;
+    if (logSearch && !log.message?.toLowerCase().includes(logSearch.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <>
@@ -571,46 +597,121 @@ export default function System() {
           </div>
 
           {/* Logs Viewer */}
-          <div className="section animate-fade-in-up stagger-5">
-            <div className="section__header">
+          <div className="section animate-fade-in-up stagger-5" style={{ marginBottom: 'var(--sp-4xl)' }}>
+            <div className="section__header" style={{ flexWrap: 'wrap', gap: 'var(--sp-md)' }}>
               <div>
                 <h2 className="section__title">System Logs</h2>
-                <p className="section__subtitle">Real-time service logs</p>
+                <p className="section__subtitle">Live service event viewer</p>
               </div>
-              <select
-                className="form-input form-select"
-                value={selectedService}
-                onChange={(e) => handleServiceChange(e.target.value)}
-                style={{ width: 'auto', minWidth: '120px' }}
-              >
-                <option value="system">System</option>
-                <option value="smb">SMB</option>
-                <option value="nfs">NFS</option>
-                <option value="ftp">FTP</option>
-              </select>
+              <div style={{ display: 'flex', gap: 'var(--sp-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)', marginRight: 'var(--sp-sm)' }}>
+                  <Toggle active={logAutoRefresh} onChange={() => setLogAutoRefresh(!logAutoRefresh)} id="toggle-autorefresh" />
+                  <span style={{ fontSize: '13px', color: 'var(--color-body)' }}>Live</span>
+                </div>
+                <select
+                  className="form-input form-select"
+                  value={selectedService}
+                  onChange={(e) => handleServiceChange(e.target.value)}
+                  style={{ width: '140px', padding: '6px 12px', fontSize: '13px' }}
+                >
+                  <option value="apexnas">ApexNAS Backend</option>
+                  <option value="system">System (journalctl)</option>
+                  <option value="smb">SMB/CIFS</option>
+                  <option value="nfs">NFS Server</option>
+                  <option value="ftp">FTP Server</option>
+                </select>
+                <select
+                  className="form-input form-select"
+                  value={logSeverity}
+                  onChange={(e) => setLogSeverity(e.target.value)}
+                  style={{ width: '120px', padding: '6px 12px', fontSize: '13px' }}
+                >
+                  <option value="ALL">All Levels</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
+                <select
+                  className="form-input form-select"
+                  value={logLimit}
+                  onChange={(e) => handleLimitChange(Number(e.target.value))}
+                  style={{ width: '100px', padding: '6px 12px', fontSize: '13px' }}
+                >
+                  <option value="50">50 lines</option>
+                  <option value="100">100 lines</option>
+                  <option value="500">500 lines</option>
+                  <option value="1000">1000 lines</option>
+                </select>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Filter logs..."
+                  value={logSearch}
+                  onChange={(e) => setLogSearch(e.target.value)}
+                  style={{ width: '180px', padding: '6px 12px', fontSize: '13px' }}
+                />
+                <button className="btn btn--secondary" onClick={() => loadLogs(selectedService, logLimit, true)} style={{ padding: '6px 12px', height: 'auto' }}>
+                  ↻ Refresh
+                </button>
+              </div>
             </div>
-            <GlassPanel variant="medium" padding="md">
-              {logsLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
-                  Loading logs...
-                </div>
-              ) : logs && logs.length > 0 ? (
-                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  {logs.map((log, i) => (
-                    <div key={i} className="log-entry">
-                      <span className="log-entry__time">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '—'}</span>
-                      <span className={`log-entry__level log-entry__level--${(log.level || 'info').toLowerCase()}`}>
-                        {log.level || 'INFO'}
-                      </span>
-                      <span className="log-entry__msg">{log.message || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
-                  No logs available
-                </div>
-              )}
+            
+            <GlassPanel variant="medium" padding="md" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid var(--color-hairline)', padding: 'var(--sp-xs) var(--sp-md)', display: 'flex', fontSize: '12px', color: 'var(--color-mute)', fontWeight: '600' }}>
+                <div style={{ width: '160px' }}>TIMESTAMP</div>
+                <div style={{ width: '80px' }}>LEVEL</div>
+                <div style={{ width: '120px' }}>SOURCE</div>
+                <div style={{ flex: 1 }}>MESSAGE</div>
+              </div>
+              
+              <div className="log-viewer" style={{ 
+                height: '500px', 
+                overflowY: 'auto', 
+                backgroundColor: '#000000', 
+                padding: 'var(--sp-sm) 0',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                {logsLoading && logs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--sp-xl)', color: 'var(--color-mute)', fontFamily: 'var(--font-sans)' }}>
+                    Loading logs...
+                  </div>
+                ) : filteredLogs.length > 0 ? (
+                  filteredLogs.map((log, i) => {
+                    const isError = log.level === 'ERROR' || log.level === 'CRITICAL';
+                    const isWarn = log.level === 'WARNING';
+                    const levelColor = isError ? 'var(--color-error)' : isWarn ? 'var(--color-warning)' : 'var(--color-cyan-deep)';
+                    
+                    return (
+                      <div key={i} style={{ 
+                        display: 'flex', 
+                        padding: '4px var(--sp-md)', 
+                        fontSize: '13px',
+                        lineHeight: '1.5',
+                        borderBottom: '1px solid rgba(255,255,255,0.02)',
+                        backgroundColor: isError ? 'rgba(255, 68, 68, 0.05)' : isWarn ? 'rgba(245, 166, 35, 0.05)' : 'transparent',
+                        color: 'var(--color-ink)'
+                      }}>
+                        <div style={{ width: '160px', color: 'var(--color-mute)', flexShrink: 0 }}>
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                        </div>
+                        <div style={{ width: '80px', color: levelColor, fontWeight: '600', flexShrink: 0 }}>
+                          {log.level || 'INFO'}
+                        </div>
+                        <div style={{ width: '120px', color: 'var(--color-mute)', flexShrink: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', paddingRight: '10px' }}>
+                          {log.unit || log.service || '—'}
+                        </div>
+                        <div style={{ flex: 1, wordBreak: 'break-all', opacity: 0.9 }}>
+                          {log.message || '—'}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 'var(--sp-xl)', color: 'var(--color-mute)', fontFamily: 'var(--font-sans)' }}>
+                    No logs found matching your criteria.
+                  </div>
+                )}
+              </div>
             </GlassPanel>
           </div>
 
