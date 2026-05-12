@@ -39,7 +39,7 @@ ApexNAS is designed with security-first principles:
 - Detection: Permission denied errors logged
 
 **3. Data Corruption**
-- Mitigated by: Atomic operations, transaction rollback, RAID
+- Mitigated by: Atomic operations, transaction rollback
 - Detection: Integrity checks on critical operations
 
 **4. Accidental Destruction**
@@ -114,7 +114,7 @@ openssl rand -base64 16
 - Modify system configuration
 - View all system logs
 - Access all shares
-- Manage RAID arrays
+- Manage storage
 
 **User Role**:
 - Create/manage own shares
@@ -158,17 +158,6 @@ sudo mkfs.ext4 /dev/mapper/storage
 chroot /home/ftpuser
 ```
 
-### RAID Data Protection
-- **RAID 1**: Mirroring - survives 1 disk failure
-- **RAID 5**: Striping with parity - survives 1 disk failure
-- **RAID 6**: Dual parity - survives 2 disk failures
-
-**Recovery**:
-```bash
-# Rebuild after drive replacement
-mdadm --add /dev/md0 /dev/sdd1
-mdadm --missingdiskfail /dev/md0 0
-```
 
 ---
 

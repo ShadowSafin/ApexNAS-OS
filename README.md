@@ -14,7 +14,7 @@
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License"></a>
   </p>
 
-  <p><i>A production-grade, self-hosted NAS system with enterprise-class features including RAID management, FTP/SMB/NFS file sharing, and comprehensive storage administration.</i></p>
+  <p><i>A production-grade, self-hosted NAS system with enterprise-class features including FTP/SMB/NFS file sharing, and comprehensive storage administration.</i></p>
 
 </div>
 
@@ -61,7 +61,7 @@ Server runs on `http://localhost:3000` with React frontend.
 
 ### First Steps
 1. Log in with default credentials (`admin` / `nasos_admin`)
-2. Go to **Storage** 💽 → Add disks and create RAID arrays
+2. Go to **Storage** 💽 → Add disks and manage filesystems
 3. Go to **Shares** 📂 → Set up SMB/FTP/NFS shares
 5. Go to **Settings** ⚙️ → Configure users and permissions
 
@@ -70,7 +70,7 @@ Server runs on `http://localhost:3000` with React frontend.
 ## 🎯 Core Features
 
 ### Storage Management
-- **RAID Arrays**: Create/monitor RAID 0, 1, 5, 6 arrays with safety-first design
+
 - **Disk Management**: Partition, format, mount filesystems with automatic fstab persistence
 - **SMART Monitoring**: Health status and predictive failure warnings
 - **Filesystem Support**: ext4, xfs, btrfs with full lifecycle management
@@ -101,7 +101,7 @@ ApexNAS/
 │   ├── INSTALLATION.md                   # Setup instructions
 │   ├── API-REFERENCE.md                  # Complete API endpoints
 │   ├── MODULES/
-│   │   ├── STORAGE.md                    # Disk and RAID management
+│   │   ├── STORAGE.md                    # Disk and storage management
 │   │   ├── SHARES.md                     # SMB, NFS, FTP sharing
 │   │   ├── AUTH.md                       # Authentication system
 │   │   └── NETWORK.md                    # Network configuration
@@ -118,7 +118,7 @@ ApexNAS/
 │   ├── modules/                          # Feature modules
 │   │   ├── auth/                         # Authentication & JWT
 │   │   ├── disk/                         # Disk management
-│   │   ├── raid/                         # RAID operations
+
 │   │   ├── storage/                      # Storage operations
 │   │   ├── shares/                       # SMB/NFS/FTP configuration
 │   │   ├── ftp/                          # FTP service
@@ -169,7 +169,7 @@ ApexNAS/
                  │ System commands, file I/O
 ┌────────────────▼────────────────────────┐
 │   Backend Services                      │
-│   ├─ mdadm (RAID)                       │
+
 │   ├─ mkfs, mount (Disk)                 │
 │   ├─ vsftpd, smbd, nfsd                 │
 │   └─ Custom Node.js services            │
@@ -270,13 +270,7 @@ PUT    /api/storage/mount/:device  # Mount partition
 DELETE /api/storage/umount/:device # Unmount partition
 ```
 
-### RAID APIs
-```
-GET    /api/raid/list              # List all RAID arrays
-POST   /api/raid/create            # Create new array
-POST   /api/raid/stop              # Stop array
-GET    /api/raid/:name/status      # Array status
-```
+
 
 ### Shares APIs  
 ```
@@ -328,10 +322,7 @@ npm run test:integration # Integration tests
 - Check firewall rules
 - See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#Connection)
 
-**RAID creation failing**
-- Verify devices aren't mounted: `lsblk -f`
-- Check device paths: `lsblk --output NAME,SIZE,TYPE`
-- See [docs/MODULES/STORAGE.md#RAID-Troubleshooting](docs/MODULES/STORAGE.md)
+
 
 
 
@@ -361,7 +352,7 @@ npm run dev
 ```
 
 ### Code Structure
-- Backend modules in `/backend/modules/` - each module (auth, disk, raid, etc.) has:
+- Backend modules in `/backend/modules/` - each module (auth, disk, storage, etc.) has:
   - `*.service.js` - Business logic
   - `*.routes.js` - API endpoints
   - `*.schema.js` - Input validation
@@ -383,7 +374,7 @@ npm run dev
 ### Completed ✅
 - Core backend infrastructure
 - Authentication & user management
-- Disk and RAID management with safety mechanisms
+- Disk management with safety mechanisms
 - FTP service with user management
 - SMB/CIFS file sharing
 - NFS support
@@ -391,7 +382,7 @@ npm run dev
 
 ### Planned 🔄
 - Web UI improvements and mobile responsiveness
-- Advanced RAID recovery tools
+
 - Backup and snapshot management
 - Enhanced monitoring and alerting
 - HA (High Availability) clustering

@@ -92,7 +92,7 @@ modules/<name>/
 **Modules**:
 - `auth/` - JWT authentication, login/logout
 - `disk/` - Partition, format, mount management
-- `raid/` - RAID array creation and management  
+
 - `storage/` - Storage pooling and management
 - `shares/` - SMB/NFS/FTP share configuration
 - `ftp/` - FTP service management
@@ -128,7 +128,7 @@ modules/<name>/
 
 | Service | Command | Module | Function |
 |---------|---------|--------|----------|
-| RAID | `mdadm` | raid | Array creation/management |
+
 | Disk | `parted`, `mkfs`, `mount` | disk | Partitioning and mounting |
 | SMB | `smbd`, `nmbd` | smb | Windows file sharing |
 | NFS | `exportfs`, `nfsd` | nfs | Unix file sharing |
@@ -165,7 +165,7 @@ modules/<name>/
 
 ---
 
-### Storage Management (Disk + RAID)
+### Storage Management (Disk)
 
 **Disk Module** - Physical partitions and filesystems
 - Partition creation/deletion
@@ -174,19 +174,10 @@ modules/<name>/
 - fstab management with atomic writes
 - SMART monitoring
 
-**RAID Module** - Redundant Array of Independent Disks
-- RAID array creation (0, 1, 5, 6)
-- Array reassembly and recovery
-- Device monitoring
-- Safe destruction with confirmation tokens
-- Simulation mode for safety
-
 **Data Flow**:
 1. User selects disks → Disk module creates partitions
 2. Partitions formatted with Disk module
-3. User creates RAID array → RAID module combines partitions
-4. RAID mounted using Disk module
-5. Storage pooled and shared via Shares module
+3. Storage pooled and shared via Shares module
 
 ---
 
@@ -239,74 +230,7 @@ modules/<name>/
 
 ## Data Flow
 
-### Typical User Workflow: Create RAID Array
 
-```
-User Interface (React)
-    ↓ Create RAID dialog
-    ↓ POST /api/raid/create
-    ↓
-Express Handler (raid.routes.js)
-    ↓ Validate input (raid.schema.js)
-    ↓ Check authentication/permissions
-    ↓
-RAID Service (raid.service.js)
-    ↓ Check device safety (mounted? system disk?)
-    ↓ Validate device paths and RAID level
-    ↓ Generate mdadm command
-    ↓ If simulation: return command preview
-    ↓ If confirmed: execute mdadm command
-    ↓ Monitor array creation
-    ↓
-System Layer
-    ↓ mdadm creates RAID array
-    ↓ Device appears as /dev/md0
-    ↓ Syncing starts
-    ↓
-RAID Service
-    ↓ Return success response
-    ↓
-Frontend
-    ↓ Show confirmation and status
-    ↓ Poll status endpoint for progress
-    ↓ Show completion when ready
-```
-
-### API Request/Response
-
-```
-REQUEST:
-POST /api/raid/create
-Authorization: Bearer <JWT>
-Content-Type: application/json
-
-{
-  "name": "md0",
-  "level": "raid1",
-  "devices": ["/dev/sdb1", "/dev/sdc1"],
-  "simulation": true,
-  "confirm": ""
-}
-
-PROCESSING:
-1. Middleware: Verify JWT token
-2. Routes: Parse JSON body
-3. Schema: Validate fields
-4. Service: Execute business logic
-5. System: Run mdadm command
-6. Return: Create response
-
-RESPONSE:
-{
-  "success": true,
-  "created": true,
-  "name": "/dev/md0",
-  "level": "raid1",  
-  "devices": [...]
-}
-```
-
----
 
 ## Safety Mechanisms
 
@@ -318,10 +242,10 @@ ApexNAS implements multiple layers of safety to prevent data loss:
 - Type checking and format enforcement
 
 ### 2. Confirmation Tokens
-Destructive operations (RAID delete, format disk) require explicit confirmation:
+Destructive operations (format disk) require explicit confirmation:
 ```json
 {
-  "operation": "remove_raid",
+  "operation": "format_disk",
   "confirm": "YES_DESTROY_DATA"  // Must be exact value
 }
 ```
@@ -404,7 +328,6 @@ All errors include:
 - Streaming for large file operations
 
 **Request Caching**
-- RAID status cached (5 second TTL)
 - Disk list cached (10 second TTL)
 - Device enumeration batched
 

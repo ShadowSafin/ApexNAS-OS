@@ -18,14 +18,12 @@ Complete guide to installing and configuring ApexNAS for development and product
 - **CPU**: 2+ cores (4+ recommended for production)
 - **RAM**: 4GB minimum (8GB+ recommended)
 - **Disk**: 50GB+ for OS and applications
-- **Disks for NAS**: Dedicated storage disks (RAID recommended)
-
+- **Disks for NAS**: Dedicated storage disks
 ### Software
 - **OS**: Linux (Ubuntu 20.04+ recommended, or compatible distribution)
 - **Node.js**: 18.0.0 or later
 - **npm**: 8.0.0 or later (comes with Node.js)
-- **Docker**: 20.10+ (for app marketplace)
-- **Docker Compose**: 2.0+ (optional, for complex deployments)
+- **npm**: 8.0.0 or later (comes with Node.js)
 
 ### Network
 - Static IP address (recommended for NAS)
@@ -86,9 +84,6 @@ node --version  # Should be 18+
 # Check npm version
 npm --version   # Should be 8+
 
-# Check Docker (if planning to use apps)
-docker --version   # Should be 20.10+
-docker ps          # Verify Docker daemon running
 
 # Check sudo access
 sudo -v            # Should work without password prompt
@@ -133,8 +128,6 @@ ADMIN_PASSWORD=change-me-to-strong-password
 STORAGE_PATH=/mnt/storage
 DATA_PATH=/var/lib/apexnas
 
-# Docker
-DOCKER_SOCKET=/var/run/docker.sock
 
 # Logging
 LOG_LEVEL=debug
@@ -151,7 +144,6 @@ npm run seed
 This creates:
 - Initial admin user (using `ADMIN_USER`/`ADMIN_PASSWORD`)
 - Default storage configuration
-- Empty app state
 - Initial logs
 
 #### Step 6: Start Development Server
@@ -232,22 +224,6 @@ This directory will contain:
 - Docker app data
 - User files
 
-### Docker Integration
-
-Verify Docker integration:
-```bash
-# Check Docker socket exists
-ls -l /var/run/docker.sock
-
-# Check docker group (for non-root access)
-groups $USER | grep docker
-```
-
-If not in docker group:
-```bash
-sudo usermod -aG docker $USER
-# Log out and back in to take effect
-```
 
 ---
 
@@ -266,13 +242,6 @@ After first login to web interface:
 4. Format with filesystem (ext4 recommended)
 5. Mount to `/mnt/storage`
 
-### 3. Create RAID Array (optional)
-**Storage** → **RAID**:
-1. Select 2+ partitions
-2. Choose RAID level (1 for redundancy)
-3. Review settings and confirm
-4. Monitor array sync
-
 ### 4. Create Shares
 **Shares** → **Create Share**:
 1. Set name and description
@@ -287,13 +256,6 @@ After first login to web interface:
 2. Set permissions (admin/user/readonly)
 3. Assign share access
 
-### 6. Install Applications
-**Apps** → **Browse Catalog**:
-1. Select pre-approved apps or search Docker Hub
-2. Configure ports and storage
-3. Click Install
-4. Monitor installation progress
-
 ---
 
 ## Multi-User Setup
@@ -301,7 +263,6 @@ After first login to web interface:
 ### Add System Users
 ```bash
 sudo adduser nachos
-sudo adduser -G docker nachos  # Access to apps
 ```
 
 ### Configure User Permissions
@@ -428,10 +389,6 @@ ls -la /var/lib/apexnas
    - [ ] Disks visible
    - [ ] Can view partitions  
 
-3. **Apps**: Apps tab
-   - [ ] Can browse marketplace
-   - [ ] Search Docker Hub works
-
 4. **Users**: Admin → Users
    - [ ] Can create user
    - [ ] Can change password
@@ -447,15 +404,6 @@ lsof -i :3000
 
 # Kill process (if unnecessary)
 kill -9 <pid>
-```
-
-### Permission Denied
-```bash
-# Most common: Docker socket permissions
-sudo chmod 666 /var/run/docker.sock
-
-# Or add user to docker group
-sudo usermod -aG docker $USER
 ```
 
 ### Cannot Connect to Backend

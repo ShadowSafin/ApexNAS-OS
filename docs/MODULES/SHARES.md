@@ -365,7 +365,7 @@ Request:
 ### Performance
 1. **Use NFS for Linux clients** (faster than SMB)
 2. **Tune block sizes** for network conditions
-3. **Use RAID 1 or 5** for share storage
+3. **Use redundant disks** for share storage
 4. **Monitor usage** to plan capacity
 
 ### Security

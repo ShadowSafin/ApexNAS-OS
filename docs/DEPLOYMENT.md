@@ -31,7 +31,7 @@ Complete guide for deploying ApexNAS to production environments.
 - [ ] Dedicated production server(s)
 - [ ] Network configured (static IP, DNS)
 - [ ] Firewall rules applied
-- [ ] Storage provisioned (RAID configured)
+- [ ] Storage provisioned
 - [ ] Network connectivity verified
 - [ ] DNS records configured
 - [ ] Time synchronization verified (`ntpd`)
@@ -441,15 +441,6 @@ sudo sysctl -p /etc/sysctl.d/99-apexnas.conf
 ```
 
 ### Storage Optimization
-
-**RAID Configuration**:
-```bash
-# Monitor RAID rebuild speed
-cat /proc/mdstat
-
-# Adjust rebuild speed (useful for production)
-echo 100000 | sudo tee /sys/block/md0/md/stripe_cache_size
-```
 
 **Filesystem Tuning**:
 ```bash

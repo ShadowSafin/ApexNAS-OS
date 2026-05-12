@@ -6,7 +6,6 @@ Complete reference for all ApexNAS REST API endpoints, organized by module.
 - [Authentication](#authentication)
 - [System APIs](#system-apis)
 - [Storage APIs](#storage-apis)
-- [RAID APIs](#raid-apis)
 - [Shares APIs](#shares-apis)
 - [Users & Permissions APIs](#users--permissions-apis)
 - [Error Handling](#error-handling)
@@ -192,9 +191,7 @@ Get overall storage information.
     "usedSize": 274877906944,
     "availableSize": 824633720832,
     "usagePercent": 25,
-    "devices": 4,
-    "mounted": 3,
-    "raidArrays": 2
+    "storageDevices": 4
   }
 }
 ```
@@ -257,149 +254,6 @@ List all mounted filesystems.
       "available": 824633720832
     }
   ]
-}
-```
-
----
-
-## RAID APIs
-
-### GET /api/raid/list
-List all RAID arrays.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "arrays": [
-    {
-      "name": "/dev/md0",
-      "status": "active",
-      "level": "raid1",
-      "devices": [
-        {
-          "name": "/dev/sdb1",
-          "index": 0,
-          "status": "active"
-        },
-        {
-          "name": "/dev/sdc1",
-          "index": 1,
-          "status": "active"
-        }
-      ],
-      "health": "healthy",
-      "rebuildProgress": null,
-      "activeDevices": 2,
-      "totalDevices": 2,
-      "creationTime": "2026-04-01T12:34:56Z"
-    }
-  ]
-}
-```
-
----
-
-### POST /api/raid/create
-Create a new RAID array.
-
-**Request:**
-```json
-{
-  "name": "md0",
-  "level": "raid1",
-  "devices": ["/dev/sdb1", "/dev/sdc1"],
-  "simulation": true,
-  "confirm": ""
-}
-```
-
-**Response (200) - Simulation:**
-```json
-{
-  "success": true,
-  "simulation": true,
-  "command": "mdadm --create /dev/md0 --level=raid1 --raid-devices=2 /dev/sdb1 /dev/sdc1",
-  "validated": true,
-  "message": "Simulation successful - array would be created"
-}
-```
-
-**Response (200) - Real Creation:**
-```json
-{
-  "success": true,
-  "created": true,
-  "name": "/dev/md0",
-  "level": "raid1",
-  "devices": ["/dev/sdb1", "/dev/sdc1"],
-  "message": "RAID array created successfully"
-}
-```
-
----
-
-### POST /api/raid/stop
-Stop a RAID array.
-
-**Request:**
-```json
-{
-  "name": "md0",
-  "simulation": true
-}
-```
-
-**Response (200) - Simulation:**
-```json
-{
-  "success": true,
-  "simulation": true,
-  "command": "mdadm --stop /dev/md0",
-  "message": "Array would be stopped"
-}
-```
-
----
-
-### DELETE /api/raid/remove
-Remove RAID metadata from devices (DESTRUCTIVE).
-
-**Request:**
-```json
-{
-  "device": "/dev/sdb1",
-  "confirm": "YES_DESTROY_DATA"
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "RAID metadata removed from /dev/sdb1"
-}
-```
-
-**Note:** Requires exact confirmation token.
-
----
-
-### GET /api/raid/:name/status
-Get status of specific RAID array.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "name": "/dev/md0",
-  "level": "raid1",
-  "status": "active",
-  "health": "degraded",
-  "rebuildProgress": 45.5,
-  "rebuildSpeed": "50MB/s",
-  "estimatedTimeRemaining": 3600,
-  "devices": [...]
 }
 ```
 
@@ -630,7 +484,7 @@ All error responses follow this format:
   "message": "Input validation failed",
   "details": {
     "fields": {
-      "devices": "At least 2 devices required for RAID"
+      "path": "Path is required"
     }
   }
 }

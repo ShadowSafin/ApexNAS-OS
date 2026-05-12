@@ -13,7 +13,7 @@ Complete guide to all ApexNAS documentation.
 - **[docs/API-REFERENCE.md](API-REFERENCE.md)** - Complete REST API reference with examples
 
 ### 🔧 Module Guides
-- **[docs/MODULES/STORAGE.md](MODULES/STORAGE.md)** - Disk, RAID, filesystem management
+- **[docs/MODULES/STORAGE.md](MODULES/STORAGE.md)** - Disk management
 - **[docs/MODULES/SHARES.md](MODULES/SHARES.md)** - SMB, NFS, FTP file sharing
 
 - **[docs/MODULES/AUTH.md](MODULES/AUTH.md)** - User authentication and permissions (coming soon)
@@ -74,7 +74,7 @@ Complete guide to all ApexNAS documentation.
 - `docs/TROUBLESHOOTING.md` (Help)
 
 ### Module Documentation ✅
-- `docs/MODULES/STORAGE.md` - Disk and RAID management
+- `docs/MODULES/STORAGE.md` - Disk management
 - `docs/MODULES/SHARES.md` - File sharing (SMB, NFS, FTP)
 
 - `docs/MODULES/AUTH.md` - Authentication (planned)
@@ -92,7 +92,7 @@ Complete guide to all ApexNAS documentation.
 ### Common Tasks
 - **First Time Setup**: [INSTALLATION.md](INSTALLATION.md)
 - **Can't Connect?**: [TROUBLESHOOTING.md#Connection-Issues](TROUBLESHOOTING.md#connection-issues)
-- **RAID Issues?**: [MODULES/STORAGE.md#Troubleshooting](MODULES/STORAGE.md#troubleshooting)
+- **Storage Issues?**: [MODULES/STORAGE.md#Troubleshooting](MODULES/STORAGE.md#troubleshooting)
 - **Going to Production**: [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Need API Docs**: [API-REFERENCE.md](API-REFERENCE.md)
 - **Security Concerns**: [SECURITY.md](SECURITY.md)
@@ -115,9 +115,7 @@ Complete guide to all ApexNAS documentation.
 
 ### Storage Management
 - Disk operations: [MODULES/STORAGE.md#Disk-Management](MODULES/STORAGE.md#disk-management)
-- RAID creation: [MODULES/STORAGE.md#RAID-Configuration](MODULES/STORAGE.md#raid-configuration)
 - Filesystem: [MODULES/STORAGE.md#Mounting-Filesystems](MODULES/STORAGE.md#mounting-filesystems)
-- RAID recovery: [MODULES/STORAGE.md#RAID-Recovery](MODULES/STORAGE.md#raid-recovery)
 
 ### File Sharing  
 - SMB setup: [MODULES/SHARES.md#SMB-CIFS-Guide](MODULES/SHARES.md#smbcifs-guide)
@@ -139,7 +137,7 @@ Complete guide to all ApexNAS documentation.
 
 ### Troubleshooting
 - Connection issues: [TROUBLESHOOTING.md#Connection-Issues](TROUBLESHOOTING.md#connection-issues)
-- Storage issues: [TROUBLESHOOTING.md#Storage--RAID-Issues](TROUBLESHOOTING.md#storage--raid-issues)
+- Storage issues: [TROUBLESHOOTING.md#Storage-Issues](TROUBLESHOOTING.md#storage-issues)
 - App issues: [TROUBLESHOOTING.md#Application-Issues](TROUBLESHOOTING.md#application-issues)
 - Performance: [TROUBLESHOOTING.md#Performance-Issues](TROUBLESHOOTING.md#performance-issues)
 
@@ -151,7 +149,7 @@ Complete guide to all ApexNAS documentation.
 - **Authentication**: [API-REFERENCE.md#Authentication](API-REFERENCE.md#authentication)
 - **System**: [API-REFERENCE.md#System-APIs](API-REFERENCE.md#system-apis)
 - **Storage**: [API-REFERENCE.md#Storage-APIs](API-REFERENCE.md#storage-apis)
-- **RAID**: [API-REFERENCE.md#RAID-APIs](API-REFERENCE.md#raid-apis)
+
 - **Shares**: [API-REFERENCE.md#Shares-APIs](API-REFERENCE.md#shares-apis)
 - **Apps**: [API-REFERENCE.md#Apps-APIs](API-REFERENCE.md#apps-apis)
 - **Users**: [API-REFERENCE.md#Users--Permissions-APIs](API-REFERENCE.md#users--permissions-apis)

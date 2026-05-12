@@ -4,7 +4,7 @@ Solutions for common issues and error messages.
 
 ## Table of Contents
 - [Connection Issues](#connection-issues)
-- [Storage & RAID Issues](#storage--raid-issues)
+- [Storage Issues](#storage-issues)
 - [Share & File Access Issues](#share--file-access-issues)
 - [Application Issues](#application-issues)
 - [Authentication Issues](#authentication-issues)
@@ -106,7 +106,7 @@ iostat -x 1 5
 
 ---
 
-## Storage & RAID Issues
+## Storage Issues
 
 ### Can't See Available Disks
 
@@ -138,115 +138,6 @@ tail -f backend/logs/error.log
 
 **Solution**: Verify disks in BIOS, check physical connections, ensure proper permissions
 
----
-
-### RAID Array Not Showing
-
-**Symptom**: Created RAID but doesn't appear
-
-**Check 1: Array Actually Created?**
-```bash
-# List RAID arrays
-sudo mdadm --detail --scan
-
-# More detailed view
-sudo cat /proc/mdstat
-```
-
-**Check 2: Array Is Assembling?**
-```bash
-# If in assembly state, wait for completion
-watch cat /proc/mdstat
-
-# Or check details
-sudo mdadm --query /dev/md0
-```
-
-**Check 3: API Not Synced?**
-```bash
-# Force sync on next request (or wait 5 seconds)
-curl http://localhost:8080/api/raid/list | json_pp
-
-# Check for errors
-curl http://localhost:8080/api/raid/list?verbose=true
-```
-
-**Solution**: Wait for RAID sync to complete, verify with `mdadm`, refresh UI
-
----
-
-### RAID Creation Failed
-
-**Symptom**: "Cannot create RAID" error message
-
-**Error: Devices Mounted**
-```bash
-# Solution: Unmount devices first
-lsblk  # Find mount points
-sudo umount /mnt/path
-
-# Then retry RAID creation
-```
-
-**Error: Devices in Use**
-```bash
-# Check if devices are in use
-sudo lsof /dev/sdb1
-
-# Use fuser to find processes
-sudo fuser -v /dev/sdb1
-
-# Kill processes if safe, or wait for them to finish
-```
-
-**Error: Invalid Device Path**
-```bash
-# Verify device exists
-ls -la /dev/sdb1
-
-# Use correct path format (e.g., /dev/sdb1, not /dev/sdb)
-```
-
-**Error: Insufficient Devices**
-```bash
-# RAID 1 requires minimum 2 devices
-# RAID 5 requires minimum 3 devices
-# RAID 6 requires minimum 4 devices
-
-# Select more devices or choose lower RAID level
-```
-
----
-
-### RAID Rebuild Too Slow
-
-**Check Rebuild Speed**
-```bash
-cat /proc/mdstat
-```
-
-**Increase Rebuild Speed**:
-```bash
-# Read current max speed
-cat /sys/block/md0/md/sync_speed_max
-
-# Increase for faster rebuild (KB/s)
-echo 500000 | sudo tee /sys/block/md0/md/sync_speed_max
-
-# Higher values = faster rebuild but more I/O load
-# Balance with system load
-```
-
-**Monitor Progress**:
-```bash
-# Watch rebuild progress
-watch cat /proc/mdstat
-
-# Or with timestamps
-watch -n 5 'cat /proc/mdstat; date'
-```
-
----
 
 ## Share & File Access Issues
 
@@ -485,9 +376,6 @@ netstat -s
 
 ---
 
-### RAID Sync Slow
-
-**See**: [RAID Rebuild Too Slow](#raid-rebuild-too-slow)
 
 ---
 
@@ -516,7 +404,6 @@ iperf3 -c <server>
 iostat -x 1
 
 # If I/O% high, storage is bottleneck
-# - Check for RAID rebuilds
 - Replace slow disks
 - Check for file fragmentation
 ```
@@ -528,9 +415,8 @@ iostat -x 1
 ### System Won't Boot
 
 **Automatic Steps Being Taken**:
-1. Boot attempts to assemble RAID
-2. Mounts filesystems from fstab
-3. Starts services
+1. Mounts filesystems from fstab
+2. Starts services
 
 **If Stuck**: Press Ctrl-Alt-Del to reboot, or power cycle
 
@@ -538,7 +424,6 @@ iostat -x 1
 1. Boot into rescue mode (if available)
 2. Check `/etc/fstab` for errors
 3. Run `fsck` to repair filesystem
-4. Verify RAID health
 
 ---
 
@@ -584,7 +469,6 @@ ps aux | grep <process> | grep -v grep
 | Error | Meaning | Solution |
 |-------|---------|----------|
 | `DEVICE_MOUNTED` | Cannot format/destroy mounted device | Unmount device first |
-| `INSUFFICIENT_DEVICES` | RAID requires minimum devices | Select more devices |
 | `CONFIRMATION_REQUIRED` | Destructive op needs token | Add `confirm: "YES_DESTROY_DATA"` |
 | `UNSAFE_OPERATION` | Operation blocked by safety guard | Check device safety |
 | `VALIDATION_ERROR` | Input validation failed | Check request format |
