@@ -15,7 +15,7 @@ Complete guide to all ApexNAS documentation.
 ### 🔧 Module Guides
 - **[docs/MODULES/STORAGE.md](MODULES/STORAGE.md)** - Disk, RAID, filesystem management
 - **[docs/MODULES/SHARES.md](MODULES/SHARES.md)** - SMB, NFS, FTP file sharing
-- **[docs/MODULES/APPS.md](MODULES/APPS.md)** - Docker app marketplace and management
+
 - **[docs/MODULES/AUTH.md](MODULES/AUTH.md)** - User authentication and permissions (coming soon)
 
 ### 🚀 Operations
@@ -76,7 +76,7 @@ Complete guide to all ApexNAS documentation.
 ### Module Documentation ✅
 - `docs/MODULES/STORAGE.md` - Disk and RAID management
 - `docs/MODULES/SHARES.md` - File sharing (SMB, NFS, FTP)
-- `docs/MODULES/APPS.md` - Docker applications
+
 - `docs/MODULES/AUTH.md` - Authentication (planned)
 - `docs/MODULES/NETWORK.md` - Network configuration (planned)
 - `docs/MODULES/ADMIN.md` - System administration (planned)
@@ -124,12 +124,6 @@ Complete guide to all ApexNAS documentation.
 - NFS setup: [MODULES/SHARES.md#NFS-Guide](MODULES/SHARES.md#nfs-guide)
 - FTP setup: [MODULES/SHARES.md#FTP-Guide](MODULES/SHARES.md#ftp-guide)
 - Access control: [MODULES/SHARES.md#Access-Control](MODULES/SHARES.md#access-control)
-
-### Applications
-- Marketplace: [MODULES/APPS.md#Marketplace-Catalog](MODULES/APPS.md#marketplace-catalog)
-- Installation: [MODULES/APPS.md#Installing-Apps](MODULES/APPS.md#installing-apps)
-- Management: [MODULES/APPS.md#Managing-Containers](MODULES/APPS.md#managing-containers)
-- Docker Hub: [MODULES/APPS.md#Docker-Hub-Integration](MODULES/APPS.md#docker-hub-integration)
 
 ### Deployment & Operations
 - Setup: [DEPLOYMENT.md#Production-Environment-Setup](DEPLOYMENT.md#production-environment-setup)

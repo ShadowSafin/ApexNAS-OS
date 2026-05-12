@@ -98,10 +98,6 @@ modules/<name>/
 - `ftp/` - FTP service management
 - `smb/` - Samba/CIFS configuration
 - `nfs/` - NFS mount configuration
-- `apps/` - Docker app marketplace and management
-- `users/` - User account management
-- `permissions/` - Access control and ACLs
-- `docker/` - Docker API integration
 - `system/` - System info, health, version
 - `network/` - Network interfaces and configuration
 - `services/` - System service management (systemd, etc.)
@@ -137,7 +133,6 @@ modules/<name>/
 | SMB | `smbd`, `nmbd` | smb | Windows file sharing |
 | NFS | `exportfs`, `nfsd` | nfs | Unix file sharing |
 | FTP | `vsftpd` | ftp | File transfer protocol |
-| Docker | `docker` | apps, docker | Container management |
 | Storage | `lvm`, `zpool` | storage | Volume management |
 
 **Safety Mechanisms**:
@@ -219,26 +214,6 @@ modules/<name>/
 - Create/edit/delete shares across protocols
 - Apply permissions and quotas
 - Monitor usage statistics
-
----
-
-### Applications (Docker Integration)
-
-**Marketplace** - Pre-curated application catalog
-- 7 validated Docker images
-- Pre-configured volumes and ports
-- One-click installation
-
-**Docker Hub Integration** - Install any Docker image
-- Search Docker Hub API
-- Advanced configuration (ports, volumes, env vars)
-- Security validation (no privileged containers)
-
-**Container Lifecycle** - Management
-- Start/stop containers
-- Persistent storage in `/mnt/storage`
-- State tracking and recovery
-- Automatic restart policies
 
 ---
 
@@ -434,8 +409,7 @@ All errors include:
 - Device enumeration batched
 
 **Connection Pooling**
-- Docker API connection reuse
-- Database connection pool (if using DB)
+- Persistent connection pools where applicable
 - System command batching
 
 ### Scalability
@@ -477,7 +451,7 @@ See system dashboard for real-time metrics.
 - Environment variables in `.env`
 
 ### External Services
-- Docker daemon connection
+- FTP server (`vsftpd`) connection
 - System services (systemd)
 - Hardware (block devices, NICs)
 - Network (for SMB, NFS, FTP clients)

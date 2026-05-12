@@ -54,7 +54,7 @@ Complete guide for deploying ApexNAS to production environments.
 sudo useradd -m -s /usr/sbin/nologin -d /var/lib/apexnas apexnas
 
 # Add to necessary groups
-sudo usermod -aG docker apexnas        # Docker access
+sudo usermod -aG disk apexnas          # Storage management access
 sudo usermod -aG systemd-journal apexnas  # Journal access
 ```
 
@@ -100,8 +100,7 @@ LOG_PATH=/var/log/apexnas
 LOG_MAX_SIZE=100M
 LOG_MAX_FILES=30
 
-# Docker
-DOCKER_SOCKET=/var/run/docker.sock
+
 
 # Monitoring
 ENABLE_METRICS=true
@@ -120,7 +119,7 @@ SMTP_PASSWORD=<password>
 ```ini
 [Unit]
 Description=ApexNAS Network Attached Storage
-After=network.target docker.service
+After=network.target
 
 [Service]
 Type=simple

@@ -20,7 +20,7 @@ ApexNAS is designed with security-first principles:
 
 - **Zero Trust**: All inputs validated, all operations authenticated
 - **Defense in Depth**: Multiple security layers
-- **Least Privilege**: Users/containers only access needed resources
+- **Least Privilege**: Users only access needed resources
 - **Safe by Default**: Dangerous operations require explicit confirmation
 - **Audit Trail**: All actions logged and traceable
 
@@ -45,18 +45,6 @@ ApexNAS is designed with security-first principles:
 **4. Accidental Destruction**
 - Mitigated by: Confirmation tokens for destructive ops, simulation mode
 - Detection: All operations logged with intent tracking
-
-**5. Unauthorized Container Execution**
-- Mitigated by: No privileged containers, capability dropping, image validation
-- Detection: Container policy enforcement logged
-
-**6. Network Attacks**
-- Mitigated by: TLS/SSL for remote access, firewall configuration
-- Detection: Connection logging and anomaly detection
-
-**7. Malware/Compromised Container**
-- Mitigated by: Container isolation, read-only root filesystem, volume restrictions
-- Detection: Process monitoring and malware scanning (optional)
 
 ### Threats Out of Scope
 
@@ -164,22 +152,6 @@ sudo mkfs.ext4 /dev/mapper/storage
 
 ### Filesystem Isolation
 
-**Container Security**:
-```dockerfile
-# No privileged mode
-# Read-only root filesystem
---read-only 
-
-# Drop unnecessary capabilities
---cap-drop=ALL
-
-# No new privileges
---security-opt=no-new-privileges
-
-# Restrict to /mnt/storage
--v /mnt/storage:/workspace:rw
-```
-
 **User Jailing** (FTP):
 ```bash
 # User confined to home directory
@@ -267,37 +239,7 @@ sudo chmod 640 /var/log/apexnas/*.log
 sudo chown root:adm /var/log/apexnas/
 ```
 
-### Docker Security
 
-**Daemon Configuration** (`/etc/docker/daemon.json`):
-```json
-{
-  "icc": false,
-  "default-network-opts": {
-    "bridge": "name=docker0"
-  },
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  },
-  "userland-proxy": false
-}
-```
-
-**Container Runtime Security**:
-```bash
-# Use apparmor or selinux for container isolation
-docker run --security-opt apparmor=docker-default ...
-
-# Use user namespacing
-docker run --userns-remap=default ...
-
-# Use seccomp to restrict syscalls
-docker run --security-opt seccomp=default ...
-```
-
----
 
 ## Operational Security
 
@@ -351,9 +293,6 @@ pwgen -s 20 1
 # Backend logs
 tail -f /var/log/apexnas/combined.log
 
-# Docker container logs
-docker logs --follow <container-id>
-
 # System logs
 journalctl -u apexnas -f
 ```
@@ -387,7 +326,6 @@ netstat -tuln | grep 2049
 2. **Contain**: Stop the bleeding
    - Disable affected account
    - Disconnect compromised device
-   - Stop unauthorized container
    - Save evidence/logs
 
 3. **Investigate**: Root cause analysis
@@ -425,15 +363,6 @@ netstat -tuln | grep 2049
 6. Rotate SSH keys
 7. Monitor for suspicious activity
 
-**If container compromised:**
-1. Stop container immediately
-2. Isolate from network
-3. Preserve logs and state
-4. Review container activity
-5. Remove compromised container
-6. Rebuild from trusted image
-7. Restore from clean backup
-
 ---
 
 ## Security Checklist
@@ -453,7 +382,6 @@ netstat -tuln | grep 2049
 - [ ] Rotate credentials every 90 days
 - [ ] Test backup/recovery process quarterly
 - [ ] Review security events after incidents
-- [ ] Keep Docker images current
 
 ### Network Security ✅
 - [ ] Use TLS/HTTPS for remote access
@@ -484,12 +412,10 @@ netstat -tuln | grep 2049
 
 ### Configuration Files to Harden
 - `/etc/nas/config.json` - System configuration
-- `/etc/docker/daemon.json` - Docker daemon
 - `backend/.env` - Application secrets
 
 ### Further Reading
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Docker Security Best Practices](https://docs.docker.com/engine/security/)
 - [Linux Kernel Hardening](https://wiki.ubuntu.com/Hardening)
 - [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks/)
 

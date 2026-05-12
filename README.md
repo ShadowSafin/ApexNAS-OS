@@ -1,16 +1,39 @@
-# ApexNAS - Enterprise Network Attached Storage
+<div align="center">
+  
+  <br>
+  <h1>🚀 ApexNAS</h1>
+  <strong>Enterprise-Grade Network Attached Storage</strong>
+  <br><br>
 
-A production-grade, self-hosted NAS (Network Attached Storage) system with enterprise-class features including RAID management, Docker container app deployment, FTP/SMB/NFS file sharing, and comprehensive storage administration.
+  <p align="center">
+    <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node Version"></a>
+    <a href="https://reactjs.org"><img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"></a>
+    <a href="https://linux.org"><img src="https://img.shields.io/badge/OS-Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Linux"></a>
+    <br>
+    <a href="https://github.com/ShadowSafin/ApexNAS-OS/commits/main"><img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Status"></a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License"></a>
+  </p>
 
-**Status**: ✅ Production Ready | **Version**: 1.0.0 | **License**: MIT
+  <p><i>A production-grade, self-hosted NAS system with enterprise-class features including RAID management, FTP/SMB/NFS file sharing, and comprehensive storage administration.</i></p>
+
+</div>
+
+---
+
+<details>
+  <summary><b>✨ Click here to see what makes ApexNAS special!</b></summary>
+  <br>
+  <blockquote>
+    ApexNAS abstracts away the complexity of Linux command-line storage administration, offering robust user permission controls (ACLs), and real-time system monitoring natively through an incredible web interface. 
+  </blockquote>
+</details>
 
 ---
 
 ## ⚡ Quick Start
 
 ### Prerequisites
-- Linux system with Node.js 18+
-- Docker and Docker Compose
+- Linux system with **Node.js 18+**
 - Root/sudo access for storage operations
 
 ### Setup (5 minutes)
@@ -37,11 +60,10 @@ npm run dev
 Server runs on `http://localhost:3000` with React frontend.
 
 ### First Steps
-1. Log in with default credentials (see `.env`)
-2. Go to **Storage** → Add disks and create RAID arrays
-3. Go to **Shares** → Set up SMB/FTP/NFS shares
-4. Go to **Apps** → Install Docker containers from marketplace
-5. Go to **Settings** → Configure users and permissions
+1. Log in with default credentials (`admin` / `nasos_admin`)
+2. Go to **Storage** 💽 → Add disks and create RAID arrays
+3. Go to **Shares** 📂 → Set up SMB/FTP/NFS shares
+5. Go to **Settings** ⚙️ → Configure users and permissions
 
 ---
 
@@ -59,11 +81,7 @@ Server runs on `http://localhost:3000` with React frontend.
 - **FTP**: Secure SFTP with user jailing and passive mode support
 - **Quotas**: Per-share and per-user storage limits
 
-### Application Platform
-- **Pre-curated Marketplace**: 7 validated Docker applications (Plex, Nextcloud, Jellyfin, etc.)
-- **Docker Hub Integration**: Search and install any Docker image with security controls
-- **Container Management**: Start/stop/remove containers with persistent storage
-- **Isolated Environment**: No privileged containers, volume restrictions, security policies
+
 
 ### Administration
 - **User Management**: Create system users with role-based access
@@ -85,7 +103,6 @@ ApexNAS/
 │   ├── MODULES/
 │   │   ├── STORAGE.md                    # Disk and RAID management
 │   │   ├── SHARES.md                     # SMB, NFS, FTP sharing
-│   │   ├── APPS.md                       # Docker app installation
 │   │   ├── AUTH.md                       # Authentication system
 │   │   └── NETWORK.md                    # Network configuration
 │   ├── DEPLOYMENT.md                     # Production deployment
@@ -107,10 +124,8 @@ ApexNAS/
 │   │   ├── ftp/                          # FTP service
 │   │   ├── smb/                          # SMB/CIFS service
 │   │   ├── nfs/                          # NFS service
-│   │   ├── apps/                         # Docker app management
 │   │   ├── users/                        # User management
 │   │   ├── permissions/                  # ACL & permissions
-│   │   ├── docker/                       # Docker integration
 │   │   ├── system/                       # System info & health
 │   │   ├── network/                      # Network configuration
 │   │   └── services/                     # Service management
@@ -156,7 +171,6 @@ ApexNAS/
 │   Backend Services                      │
 │   ├─ mdadm (RAID)                       │
 │   ├─ mkfs, mount (Disk)                 │
-│   ├─ Docker daemon                      │
 │   ├─ vsftpd, smbd, nfsd                 │
 │   └─ Custom Node.js services            │
 └────────────────┬────────────────────────┘
@@ -237,7 +251,6 @@ ApexNAS includes enterprise-grade security:
 - **Authentication**: JWT-based with refresh tokens
 - **Authorization**: Role-based access control (RBAC)
 - **Data Protection**: Atomic operations, transaction rollback
-- **Container Isolation**: No privileged containers, capability dropping
 - **Path Restrictions**: User jailing, filesystem isolation
 - **Validation**: Comprehensive input validation on all APIs
 - **Logging**: Full audit trail of administrative actions
@@ -272,13 +285,7 @@ POST   /api/shares/create          # Create share
 DELETE /api/shares/:id             # Remove share
 ```
 
-### Apps APIs
-```
-GET    /api/apps/catalog           # Browse app marketplace
-POST   /api/apps/install           # Install app
-POST   /api/apps/start/:id         # Start container
-DELETE /api/apps/remove/:id        # Remove container
-```
+
 
 ### Admin APIs
 ```
@@ -326,10 +333,7 @@ npm run test:integration # Integration tests
 - Check device paths: `lsblk --output NAME,SIZE,TYPE`
 - See [docs/MODULES/STORAGE.md#RAID-Troubleshooting](docs/MODULES/STORAGE.md)
 
-**Docker apps won't start**
-- Docker daemon running? `docker ps`
-- Storage permissions correct? `ls -la /mnt/storage`
-- See [docs/MODULES/APPS.md#Troubleshooting](docs/MODULES/APPS.md)
+
 
 **SMB/FTP not accessible**
 - Service running? Check dashboard
@@ -380,7 +384,6 @@ npm run dev
 - Core backend infrastructure
 - Authentication & user management
 - Disk and RAID management with safety mechanisms
-- Docker app marketplace and installer
 - FTP service with user management
 - SMB/CIFS file sharing
 - NFS support
@@ -411,7 +414,7 @@ MIT License - See LICENSE file for details
 ### Reporting Issues
 1. Search existing issues
 2. Collect relevant logs from `/logs/`
-3. Include system info: `uname -a`, `docker --version`
+3. Include system info: `uname -a`
 4. Create detailed issue report
 
 ### Community
@@ -424,7 +427,6 @@ MIT License - See LICENSE file for details
 
 - **Current Version**: 1.0.0 (Production Ready) ✅
 - **Node.js**: 18+
-- **Docker**: 20.10+
 - **Linux**: Ubuntu 20.04+ or compatible
 
 ---

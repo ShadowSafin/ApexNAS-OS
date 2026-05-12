@@ -125,9 +125,6 @@ lsblk
 ```bash
 # ApexNAS needs access to block devices
 ls -la /dev/sd*
-
-# Check user in docker group
-groups $USER | grep docker
 ```
 
 **Check 3: Backend Connection**
@@ -388,96 +385,7 @@ mount | grep /mnt/nas
 
 ## Application Issues
 
-### Docker App Won't Start
-
-**Symptom**: "Failed to start container" error
-
-**Check 1: Docker Daemon Running?**
-```bash
-docker ps
-
-# If error, start Docker
-sudo systemctl start docker
-```
-
-**Check 2: Image Downloaded?**
-```bash
-# List images
-docker images
-
-# Pull image if missing
-docker pull <image>:<tag>
-```
-
-**Check 3: Port Conflict?**
-```bash
-# Check port in use
-sudo netstat -tuln | grep :8080
-
-# Change container port mapping in API call
-```
-
-**Check 4: Storage Space?**
-```bash
-# Check disk space
-df -h
-
-# Free up space if needed
-docker system prune  # Caution: removes unused containers
-```
-
-**Check 5: Resource Limits?**
-```bash
-# Check container resource usage
-docker stats <container>
-
-# If out of memory, either:
-# - Increase host memory (hardware)
-# - Allocate less memory to containers
-# - Close other containers
-```
-
-**View Container Logs**:
-```bash
-# Real-time logs
-docker logs -f <container_id>
-
-# Last 100 lines
-docker logs --tail 100 <container_id>
-
-# With timestamps
-docker logs -t <container_id>
-```
-
----
-
-### App Data Lost After Restart
-
-**Symptom**: Container starts but app configuration/data gone
-
-**Cause**: Volume not properly configured
-
-**Check 1: Volume Exists?**
-```bash
-# List volumes
-docker volume ls
-
-# Inspect volume
-docker volume inspect <volume_name>
-```
-
-**Check 2: Volume Mounted Correctly?**
-```bash
-# Check container mounts
-docker inspect <container> | grep -A 5 "\"Mounts\""
-
-# Verify mount path in /mnt/storage
-ls -la /mnt/storage/apps/
-```
-
-**Solution**: Remove container and reinstall with correct volume configuration
-
----
+#
 
 ## Authentication Issues
 
@@ -650,9 +558,6 @@ find /mnt/storage -type f -size +1G -exec ls -lh {} \;
 # Remove old backups
 rm -rf /var/backups/old_*
 
-# Docker cleanup
-docker system prune
-
 # Clear logs
 truncate -s 0 /var/log/apexnas/*.log
 ```
@@ -669,10 +574,7 @@ top -o %MEM | head -20
 ps aux | grep <process> | grep -v grep
 ```
 
-**Solutions**:
-- Stop unnecessary containers
-- Reduce Docker container memory limits
-- Restart ApexNAS service
+**Solutions**:- Restart ApexNAS service
 - Add more RAM
 
 ---
@@ -700,8 +602,6 @@ ps aux | grep <process> | grep -v grep
 1. **Check logs first**:
    - `tail -f backend/logs/error.log`
    - `journalctl -u apexnas -f`
-   - `docker logs <container>`
-
 2. **Verify configuration**:
    - Check `.env` file
    - Verify file permissions
