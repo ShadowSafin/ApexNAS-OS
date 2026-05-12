@@ -115,7 +115,7 @@ export default function Groups() {
     return (
       <>
         <TopBar title="Groups" breadcrumbs={['Access Control', 'Groups']} />
-        <div className="app-layout__content">
+        <div className="page-content">
           <div className="groups-container">
             <div className="loading-state">
               <div className="loading-spinner" />
@@ -130,7 +130,7 @@ export default function Groups() {
   return (
     <>
       <TopBar title="Groups" breadcrumbs={['Access Control', 'Groups']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="groups-container">
           {error && (
             <div className="error-banner">

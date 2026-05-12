@@ -5,7 +5,7 @@ export default function ProgressRing({
   value = 0,
   size = 100,
   strokeWidth = 6,
-  color = 'var(--accent-primary)',
+  color = 'var(--color-link)',
   label,
   showValue = true,
 }) {

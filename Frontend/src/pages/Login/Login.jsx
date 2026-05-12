@@ -30,23 +30,21 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-mesh"></div>
-      <div className="login-box">
-        <div className="login-header">
-          <div className="login-logo">⬡</div>
-          <div className="login-branding">
-            <h1 className="login-title">ApexNAS</h1>
-            <p className="login-subtitle">Storage Management System</p>
-          </div>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-card__header">
+          <div className="login-card__logo">▲</div>
+          <h1 className="login-card__title">ApexNAS</h1>
+          <p className="login-card__subtitle">Storage Management System</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
+        <form onSubmit={handleSubmit} className="login-card__form">
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username" className="form-label">Username</label>
             <input
               id="username"
               type="text"
+              className="form-input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
@@ -55,28 +53,26 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password" className="form-label">Password</label>
             <input
               id="password"
               type="password"
+              className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
             />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="login-card__error">{error}</div>}
 
-          <button type="submit" disabled={loading} className="login-button">
-            <span className="login-button-text">
-              {loading ? 'Signing in...' : 'Sign In'}
-            </span>
-            {!loading && <span className="login-button-icon">→</span>}
+          <button type="submit" disabled={loading} className="login-card__submit">
+            {loading ? 'Signing in...' : 'Sign In →'}
           </button>
         </form>
 
-        <div className="login-footer">
-          <p className="login-hint">Demo: admin / nasos_admin</p>
+        <div style={{ textAlign: 'center', marginTop: 'var(--sp-md)' }}>
+          <p className="form-hint">Demo: admin / nasos_admin</p>
         </div>
       </div>
     </div>

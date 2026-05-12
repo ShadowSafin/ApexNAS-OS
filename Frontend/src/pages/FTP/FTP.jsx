@@ -74,7 +74,7 @@ export default function FTP() {
     return (
       <>
         <TopBar title="FTP Service" breadcrumbs={['Services', 'FTP']} />
-        <div className="app-layout__content">
+        <div className="page-content">
           <div className="ftp-container">
             <div className="loading-state">Loading FTP configuration...</div>
           </div>
@@ -86,7 +86,7 @@ export default function FTP() {
   return (
     <>
       <TopBar title="FTP Service" breadcrumbs={['Services', 'FTP']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="ftp-container">
           {error && (
             <div className="error-banner">
@@ -104,7 +104,7 @@ export default function FTP() {
                   <span className="protocol-badge protocol-badge--ftp">Port 21</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                 <StatusIndicator 
                   status={ftpStatus?.enabled ? 'online' : 'offline'} 
                   label={ftpStatus?.enabled ? 'Running' : 'Stopped'}
@@ -206,7 +206,7 @@ export default function FTP() {
                               {username}
                             </span>
                           </td>
-                          <td style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: 'var(--font-size-xs)' }}>
+                          <td style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: '12px' }}>
                             /mnt/storage
                           </td>
                           <td>

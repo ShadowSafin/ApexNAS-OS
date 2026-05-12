@@ -35,13 +35,7 @@ function createApp() {
   app.use(helmet());
   app.use(
     cors({
-      origin: function (origin, callback) {
-        if (!origin || config.corsOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      }
+      origin: true
     })
   );
   app.use(express.json({ limit: '10mb' }));

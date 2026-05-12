@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Configure base URL - matches backend server
 // Use import.meta.env for Vite, fallback to direct URL
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * API Client Instance

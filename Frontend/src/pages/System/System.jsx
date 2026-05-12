@@ -221,25 +221,25 @@ export default function System() {
 
   const ProgressBar = ({ value, label, subtitle, hasUsage }) => {
     const getColor = (v) => {
-      if (v < 50) return '#4ade80';
-      if (v < 75) return '#fbbf24';
-      return '#f87171';
+      if (v < 50) return 'var(--color-cyan-deep)';
+      if (v < 75) return 'var(--color-warning)';
+      return 'var(--color-error)';
     };
     // Show '<1%' when value rounds to 0 but there IS actual usage
     const displayValue = (value === 0 && hasUsage) ? '<1' : `${value}`;
     const barWidth = (value === 0 && hasUsage) ? 1 : value;
     return (
-      <div style={{ marginBottom: 'var(--space-3)' }}>
+      <div style={{ marginBottom: 'var(--sp-sm)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
           <div>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-body)' }}>{label}</span>
             {subtitle && (
-              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '8px' }}>{subtitle}</span>
+              <span style={{ fontSize: '11px', color: 'var(--color-mute)', marginLeft: '8px' }}>{subtitle}</span>
             )}
           </div>
           <span style={{ fontSize: '12px', fontWeight: 'bold', color: getColor(value) }}>{displayValue}%</span>
         </div>
-        <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ height: '8px', backgroundColor: 'var(--color-canvas-soft-2)', borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{
             width: `${barWidth}%`,
             height: '100%',
@@ -254,20 +254,13 @@ export default function System() {
   return (
     <>
       <TopBar title="System" breadcrumbs={['Administration', 'System Settings']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="system-page">
 
           {error && (
-            <div style={{
-              padding: 'var(--space-3)',
-              marginBottom: 'var(--space-4)',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
-              fontSize: 'var(--font-size-sm)'
-            }}>
-              <strong>Error:</strong> {error}
+            <div className="error-banner">
+              <span><strong>Error:</strong> {error}</span>
+              <button className="error-close" onClick={() => setError(null)}>×</button>
             </div>
           )}
 
@@ -278,7 +271,7 @@ export default function System() {
             </div>
             <GlassPanel variant="medium" padding="lg">
               {systemLoading && !metrics ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Loading metrics...
                 </div>
               ) : (
@@ -317,29 +310,29 @@ export default function System() {
             <div className="section__header">
               <h2 className="section__title">Temperature</h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--sp-md)' }}>
               <GlassPanel variant="subtle" padding="md">
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.cpuTemp === 0 ? '#6b7280' : temp.cpuTemp > 80 ? '#f87171' : temp.cpuTemp > 60 ? '#fbbf24' : '#4ade80' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.cpuTemp === 0 ? 'var(--color-mute)' : temp.cpuTemp > 80 ? 'var(--color-error)' : temp.cpuTemp > 60 ? 'var(--color-warning)' : 'var(--color-cyan-deep)' }}>
                     {temp.cpuTemp > 0 ? <>{temp.cpuTemp}{"°"}C</> : 'N/A'}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--color-body)', marginTop: 'var(--sp-xs)' }}>
                     CPU Temperature
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-mute)', marginTop: 'var(--sp-xxs)' }}>
                     {temp.cpuTemp === 0 ? 'Sensor unavailable' : temp.cpuTemp > 80 ? 'Critical' : temp.cpuTemp > 60 ? 'Warm' : 'Normal'}
                   </div>
                 </div>
               </GlassPanel>
               <GlassPanel variant="subtle" padding="md">
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.diskTemp === 0 ? '#6b7280' : temp.diskTemp > 60 ? '#f87171' : temp.diskTemp > 45 ? '#fbbf24' : '#4ade80' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '600', color: temp.diskTemp === 0 ? 'var(--color-mute)' : temp.diskTemp > 60 ? 'var(--color-error)' : temp.diskTemp > 45 ? 'var(--color-warning)' : 'var(--color-cyan-deep)' }}>
                     {temp.diskTemp > 0 ? <>{temp.diskTemp}{"°"}C</> : 'N/A'}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--color-body)', marginTop: 'var(--sp-xs)' }}>
                     Disk Temperature
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-mute)', marginTop: 'var(--sp-xxs)' }}>
                     {temp.diskTemp === 0 ? 'Sensor unavailable' : temp.diskTemp > 60 ? 'Critical' : temp.diskTemp > 45 ? 'Warm' : 'Normal'}
                   </div>
                 </div>
@@ -352,22 +345,22 @@ export default function System() {
             <div className="section__header">
               <h2 className="section__title">Network Interfaces</h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-md)' }}>
               {networkLoading ? (
                 <GlassPanel variant="subtle" padding="md">
-                  <div style={{ textAlign: 'center', color: '#999' }}>Loading...</div>
+                  <div style={{ textAlign: 'center', color: 'var(--color-mute)' }}>Loading...</div>
                 </GlassPanel>
               ) : networkInterfaces.length > 0 ? (
                 networkInterfaces.map((iface) => (
                   <GlassPanel key={iface.name} variant="subtle" padding="md">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                      <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{iface.name}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-xs)' }}>
+                      <span style={{ fontWeight: '600', color: 'var(--color-ink)' }}>{iface.name}</span>
                       <span style={{
-                        fontSize: 'var(--font-size-xs)',
+                        fontSize: '12px',
                         padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: iface.status === 'up' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                        color: iface.status === 'up' ? '#10B981' : '#EF4444'
+                        borderRadius: 'var(--r-sm)',
+                        backgroundColor: iface.status === 'up' ? 'var(--color-cyan-soft)' : 'var(--color-error-soft)',
+                        color: iface.status === 'up' ? 'var(--color-cyan-deep)' : 'var(--color-error)'
                       }}>
                         {iface.status?.toUpperCase()}
                       </span>
@@ -378,7 +371,7 @@ export default function System() {
                     </div>
                     <div className="info-row">
                       <span className="info-row__label">MAC Address</span>
-                      <span className="info-row__value" style={{ fontSize: 'var(--font-size-xs)' }}>{iface.mac}</span>
+                      <span className="info-row__value" style={{ fontSize: '12px' }}>{iface.mac}</span>
                     </div>
                     <div className="info-row">
                       <span className="info-row__label">Speed</span>
@@ -388,7 +381,7 @@ export default function System() {
                 ))
               ) : (
                 <GlassPanel variant="subtle" padding="md">
-                  <div style={{ textAlign: 'center', color: '#999' }}>No interfaces found</div>
+                  <div style={{ textAlign: 'center', color: 'var(--color-mute)' }}>No interfaces found</div>
                 </GlassPanel>
 )}
             </div>
@@ -401,7 +394,7 @@ export default function System() {
             </div>
             <GlassPanel variant="medium" padding="lg">
               {systemLoading && !sys.hostname ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Loading system information...
                 </div>
               ) : sys.hostname ? (
@@ -432,7 +425,7 @@ export default function System() {
                   </div>
                 </>
               ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   No system information available
                 </div>
               )}
@@ -445,27 +438,27 @@ export default function System() {
               <h2 className="section__title">Account Settings</h2>
             </div>
             <GlassPanel variant="medium" padding="lg">
-              <p className="section__subtitle" style={{ marginBottom: 'var(--space-4)' }}>
+              <p className="section__subtitle" style={{ marginBottom: 'var(--sp-md)' }}>
                 Change your web interface login credentials.
               </p>
               
               {acctMsg.txt && (
                 <div style={{ 
-                  padding: 'var(--space-3)', 
-                  marginBottom: 'var(--space-4)', 
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: acctMsg.t === 'error' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-                  color: acctMsg.t === 'error' ? '#EF4444' : '#10B981'
+                  padding: 'var(--sp-sm)', 
+                  marginBottom: 'var(--sp-md)', 
+                  borderRadius: 'var(--r-sm)',
+                  backgroundColor: acctMsg.t === 'error' ? 'var(--color-error-soft)' : 'var(--color-cyan-soft)',
+                  color: acctMsg.t === 'error' ? 'var(--color-error)' : 'var(--color-cyan-deep)'
                 }}>
                   {acctMsg.txt}
                 </div>
               )}
 
-              <div style={{ marginBottom: 'var(--space-4)' }}>
-                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
+              <div style={{ marginBottom: 'var(--sp-md)' }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--sp-xs)' }}>
                   Change Username
                 </label>
-                <div className="form-group" style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ display: 'flex', gap: 'var(--sp-sm)', flexWrap: 'wrap' }}>
                   <input 
                     type="text" 
                     className="form-input"
@@ -487,10 +480,10 @@ export default function System() {
               </div>
 
               <div>
-                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 'var(--sp-xs)' }}>
                   Change Password
                 </label>
-                <div className="form-group" style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ display: 'flex', gap: 'var(--sp-sm)', flexWrap: 'wrap' }}>
                   <input 
                     type="password" 
                     className="form-input"
@@ -563,7 +556,7 @@ export default function System() {
               <h2 className="section__title">Power Management</h2>
             </div>
             <GlassPanel variant="medium" padding="lg">
-              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-3)' }}>
+              <p style={{ color: 'var(--color-body)', fontSize: '14px', marginBottom: 'var(--sp-sm)' }}>
                 Control system power state. Active connections will be terminated.
               </p>
               <div className="power-actions">
@@ -585,17 +578,10 @@ export default function System() {
                 <p className="section__subtitle">Real-time service logs</p>
               </div>
               <select
+                className="form-input form-select"
                 value={selectedService}
                 onChange={(e) => handleServiceChange(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#222',
-                  border: '1px solid #444',
-                  borderRadius: '4px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}
+                style={{ width: 'auto', minWidth: '120px' }}
               >
                 <option value="system">System</option>
                 <option value="smb">SMB</option>
@@ -605,7 +591,7 @@ export default function System() {
             </div>
             <GlassPanel variant="medium" padding="md">
               {logsLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Loading logs...
                 </div>
               ) : logs && logs.length > 0 ? (
@@ -621,7 +607,7 @@ export default function System() {
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   No logs available
                 </div>
               )}
@@ -632,67 +618,44 @@ export default function System() {
 
         {/* Confirmation Dialog */}
         {confirmDialog.visible && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              backgroundColor: '#1a1a2e',
-              border: '1px solid #e91e63',
-              borderRadius: '8px',
-              padding: '32px',
-              maxWidth: '400px',
-              color: '#fff',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
-            }}>
-              <h3 style={{ fontSize: '20px', marginBottom: '16px', color: '#e91e63' }}>
-                ⚠️ {confirmDialog.type === 'reboot' ? 'Reboot System?' : 'Shutdown System?'}
-              </h3>
-
-              {confirmDialog.step === 1 ? (
-                <>
-                  <p style={{ marginBottom: '24px', color: '#ccc', fontSize: '14px' }}>
+          <div className="modal-overlay" onClick={closeConfirmDialog}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+              <div className="modal__header">
+                <h3 className="modal__title" style={{ color: 'var(--color-error)' }}>
+                  ⚠️ {confirmDialog.type === 'reboot' ? 'Reboot System?' : 'Shutdown System?'}
+                </h3>
+                <button className="modal__close" onClick={closeConfirmDialog}>✕</button>
+              </div>
+              <div className="modal__body">
+                {confirmDialog.step === 1 ? (
+                  <p style={{ fontSize: 'var(--fs-body-sm)', color: 'var(--color-body)', lineHeight: 'var(--lh-body-sm)' }}>
                     {confirmDialog.type === 'reboot'
                       ? 'This will immediately restart the system. All active connections will be terminated. Are you sure?'
                       : 'This will immediately shut down the system. This action cannot be undone without physical access. Are you sure?'
                     }
                   </p>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={closeConfirmDialog} disabled={confirmDialog.isProcessing}
-                      style={{ flex: 1, padding: '10px', backgroundColor: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1 }}>
-                      Cancel
-                    </button>
-                    <button onClick={handleConfirmStep} disabled={confirmDialog.isProcessing}
-                      style={{ flex: 1, padding: '10px', backgroundColor: '#e91e63', border: 'none', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1, fontWeight: 'bold' }}>
-                      Yes, Continue
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p style={{ marginBottom: '8px', color: '#ff9999', fontSize: '14px', fontWeight: 'bold' }}>
-                    {confirmDialog.type === 'reboot'
-                      ? 'This is your FINAL confirmation to reboot the system.'
-                      : 'This is your FINAL confirmation to shut down the system.'
-                    }
-                  </p>
-                  <p style={{ marginBottom: '24px', color: '#ccc', fontSize: '12px' }}>
-                    Click "Confirm" again to proceed. This action will be executed immediately.
-                  </p>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={closeConfirmDialog} disabled={confirmDialog.isProcessing}
-                      style={{ flex: 1, padding: '10px', backgroundColor: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', opacity: confirmDialog.isProcessing ? 0.5 : 1 }}>
-                      Cancel
-                    </button>
-                    <button onClick={handleConfirmStep} disabled={confirmDialog.isProcessing}
-                      style={{ flex: 1, padding: '10px', backgroundColor: confirmDialog.isProcessing ? '#666' : '#e91e63', border: 'none', color: '#fff', borderRadius: '4px', cursor: confirmDialog.isProcessing ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-                      {confirmDialog.isProcessing ? 'Processing...' : 'Confirm'}
-                    </button>
-                  </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    <p style={{ color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', fontWeight: 'var(--fw-display)', marginBottom: 'var(--sp-sm)' }}>
+                      {confirmDialog.type === 'reboot'
+                        ? 'This is your FINAL confirmation to reboot the system.'
+                        : 'This is your FINAL confirmation to shut down the system.'
+                      }
+                    </p>
+                    <p style={{ color: 'var(--color-body)', fontSize: 'var(--fs-caption)' }}>
+                      Click "Confirm" again to proceed. This action will be executed immediately.
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="modal__footer">
+                <button className="btn btn--secondary" onClick={closeConfirmDialog} disabled={confirmDialog.isProcessing}>
+                  Cancel
+                </button>
+                <button className="btn btn--danger" onClick={handleConfirmStep} disabled={confirmDialog.isProcessing}>
+                  {confirmDialog.step === 1 ? 'Yes, Continue' : (confirmDialog.isProcessing ? 'Processing...' : 'Confirm')}
+                </button>
+              </div>
             </div>
           </div>
         )}

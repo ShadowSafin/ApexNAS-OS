@@ -7,7 +7,7 @@ module.exports = {
   refreshTokenTtl: '7d',
   logLevel: process.env.LOG_LEVEL || 'info',
   logDir: process.env.LOG_DIR || './logs',
-  corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) : ['http://localhost:3000', 'http://localhost:5173'],
+  corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) : ['http://apexnas.local:5173', 'http://apexnas.local:3000', 'http://apexnas:5173', 'http://apexnas:3000'],
   dataDir: process.env.DATA_DIR || './data',
   pluginsDir: process.env.PLUGINS_DIR || '../plugins',
   allowedCommands: new Set([

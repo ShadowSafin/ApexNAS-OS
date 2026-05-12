@@ -120,25 +120,14 @@ export default function SMBNFS() {
   return (
     <>
       <TopBar title="SMB / NFS" breadcrumbs={['Services', 'Protocol Configuration']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="smbnfs-page">
 
           {/* Error message */}
           {error && (
-            <div style={{
-              padding: 'var(--space-3)',
-              marginBottom: 'var(--space-4)',
-              backgroundColor: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.15)',
-              borderRadius: 'var(--radius-md)',
-              color: '#F87171',
-              fontSize: 'var(--font-size-sm)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+            <div className="error-banner">
               <span><strong>Error:</strong> {error}</span>
-              <button style={{ background: 'none', border: 'none', color: '#F87171', cursor: 'pointer', fontSize: '1.1rem' }} onClick={() => setError(null)}>×</button>
+              <button className="error-close" onClick={() => setError(null)}>×</button>
             </div>
           )}
 
@@ -151,7 +140,7 @@ export default function SMBNFS() {
                   <span className="protocol-badge protocol-badge--smb">Port 445</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                 <StatusIndicator 
                   status={smbEnabled ? 'online' : 'offline'} 
                   label={smbEnabled ? 'Running' : 'Stopped'} 
@@ -222,7 +211,7 @@ export default function SMBNFS() {
                   <span className="protocol-badge protocol-badge--nfs">Port 2049</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                 <StatusIndicator 
                   status={nfsEnabled ? 'online' : 'offline'} 
                   label={nfsEnabled ? 'Running' : 'Stopped'} 

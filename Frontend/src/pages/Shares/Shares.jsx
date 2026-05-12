@@ -286,7 +286,7 @@ function ShareCard({ share, isExpanded, onToggleExpand, onDelete, updateServices
               </div>
 
               {/* ── Access Endpoints ──────────────────────── */}
-              <h4 className="share-section__title" style={{ marginTop: 'var(--space-5)' }}>Access Endpoints</h4>
+              <h4 className="share-section__title" style={{ marginTop: 'var(--sp-lg)' }}>Access Endpoints</h4>
               {hasEndpoints ? (
                 <div className="access-endpoints">
                   {access.smb && <AccessEndpoint protocol="SMB" url={access.smb} copiedKey={copiedKey} onCopy={copy} />}
@@ -368,11 +368,11 @@ export default function Shares() {
   return (
     <>
       <TopBar title="Shared Folders" breadcrumbs={['Storage', 'Shares']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="shares-page">
 
           {/* ── Header ─────────────────────────────────── */}
-          <div className="section__header" style={{ marginBottom: 'var(--space-5)' }}>
+          <div className="section__header" style={{ marginBottom: 'var(--sp-lg)' }}>
             <div>
               <h2 className="section__title">Shared Folders</h2>
               <p className="section__subtitle">
@@ -390,7 +390,7 @@ export default function Shares() {
                 )}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', gap: 'var(--sp-xs)' }}>
               <button className="btn btn--secondary" onClick={() => fetchShares()} disabled={sharesLoading}>
                 ↻ Refresh
               </button>
@@ -421,7 +421,7 @@ export default function Shares() {
               <div className="shares-empty">
                 <div className="shares-empty__icon">📂</div>
                 <p>No shared folders configured</p>
-                <p style={{ fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-2)' }}>
+                <p style={{ fontSize: '14px', marginTop: 'var(--sp-xs)' }}>
                   Create a share to get started with file sharing
                 </p>
               </div>
@@ -430,7 +430,7 @@ export default function Shares() {
 
           {/* ── Share Cards ────────────────────────────── */}
           {shares?.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>
               {shares.map((share, i) => (
                 <div key={share.id || share.name} className={`animate-fade-in-up stagger-${Math.min(i + 1, 5)}`}>
                   <ShareCard

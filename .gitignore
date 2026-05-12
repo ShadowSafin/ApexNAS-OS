@@ -15,3 +15,9 @@ Frontend/.eslintcache
 backend/node_modules/
 backend/.env
 backend/logs/
+
+# ISO Build Environment
+iso-build/
+iso-config-staging/
+*.iso
+*.squashfs

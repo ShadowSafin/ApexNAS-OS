@@ -14,7 +14,7 @@ export default function Toast({ message, duration = 3000, type = 'success' }) {
   return (
     <div className={`toast toast--${type}`}>
       <span className="toast__message">{message}</span>
-      <button 
+      <button
         className="toast__close"
         onClick={() => setIsVisible(false)}
         aria-label="Close toast"

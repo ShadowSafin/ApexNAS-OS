@@ -12,7 +12,7 @@ const path = require('path');
 const router = express.Router();
 
 const authFile = '/etc/apexnas/auth.json';
-const defaultPasswordHash = '$2a$10$wNXBnNbPBsr.Tc4BGRGW/e5qfwx9aEyPO7k4sB1dpbA/b9WzHu6QC';
+const defaultPasswordHash = '$2a$10$HLuktUYLAEDfoSeSXea59O2j9f3tXdmOx/yV4IkcZLFN6jairE2xC';
 
 function loadAuth() {
   try {

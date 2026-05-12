@@ -16,29 +16,24 @@ html {
 }
 
 body {
-  font-family: var(--font-family);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-regular);
-  line-height: var(--line-height-normal);
-  color: var(--text-primary);
-  background: var(--bg-primary);
-  background-image: var(--bg-gradient);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-body);
+  line-height: var(--lh-body-sm);
+  letter-spacing: var(--ls-body-sm);
+  color: var(--color-ink);
+  background-color: var(--color-canvas-soft);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
   min-height: 100vh;
   overflow: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: var(--bg-mesh);
-  pointer-events: none;
-  z-index: 0;
-}
-
 #root {
   position: relative;
-  z-index: 1;
   min-height: 100vh;
 }
 
@@ -57,7 +52,9 @@ button {
   outline: none;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -66,7 +63,8 @@ input, textarea, select {
   outline: none;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -75,6 +73,7 @@ img {
   display: block;
 }
 
+/* ─── Scrollbar ─── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -85,15 +84,15 @@ img {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
+  background: var(--color-hairline-strong);
+  border-radius: var(--r-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--color-mute);
 }
 
 ::selection {
-  background: rgba(108, 159, 255, 0.3);
-  color: white;
+  background: var(--color-selection-bg);
+  color: var(--color-selection-fg);
 }

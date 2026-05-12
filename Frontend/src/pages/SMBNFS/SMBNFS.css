@@ -1,51 +1,59 @@
+/* ─── SMB/NFS Page ─── */
 .smbnfs-page {
-  animation: fadeInUp var(--duration-slow) var(--ease-out) both;
+  max-width: var(--content-max-width);
 }
 
+/* ─── Protocol Header ─── */
 .protocol-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--sp-sm);
 }
 
 .protocol-header__left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-sm);
 }
 
 .protocol-badge {
-  display: inline-flex;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-wide);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
 }
 
 .protocol-badge--smb {
-  background: rgba(96, 165, 250, 0.12);
-  color: #60A5FA;
+  background: var(--color-violet-soft);
+  color: var(--color-violet-deep);
 }
 
 .protocol-badge--nfs {
-  background: rgba(139, 92, 246, 0.12);
-  color: #A78BFA;
+  background: var(--color-cyan-soft);
+  color: var(--color-cyan-deep);
 }
 
+.protocol-badge--ftp {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-deep);
+}
+
+/* ─── Settings Group ─── */
 .settings-group {
+  margin-top: var(--sp-md);
+  border-top: 1px solid var(--color-hairline);
+  padding-top: var(--sp-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
 }
 
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px solid var(--color-hairline);
 }
 
 .setting-item:last-child {
@@ -59,33 +67,27 @@
 }
 
 .setting-item__label {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-body-strong);
+  color: var(--color-ink);
 }
 
 .setting-item__desc {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
 }
 
 /* ─── Share Count ─── */
 .share-count {
-  font-weight: var(--font-weight-medium);
-  color: var(--text-secondary);
+  font-weight: var(--fw-body-strong);
 }
 
 .share-count--active {
-  color: #4ade80;
+  color: var(--color-cyan-deep);
 }
 
 .share-count-hint {
-  font-size: var(--font-size-xs);
-  color: #fbbf24;
-  font-style: italic;
-}
-
-.protocol-badge--ftp {
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
+  font-weight: var(--fw-body);
 }

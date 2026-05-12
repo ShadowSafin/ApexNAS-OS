@@ -151,7 +151,7 @@ export default function Storage() {
   return (
     <>
       <TopBar title="Disks" breadcrumbs={['Storage', 'Physical Disks']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="storage-page">
           <div className="section">
             <div className="section__header">
@@ -168,20 +168,20 @@ export default function Storage() {
 
             {/* Action result banner */}
             {actionResult && (
-              <div className={`alert alert--${actionResult.type}`} style={{ marginBottom: 'var(--space-4)' }}>
+              <div className={`alert alert--${actionResult.type}`} style={{ marginBottom: 'var(--sp-md)' }}>
                 {actionResult.type === 'success' ? '✓' : '✕'} {actionResult.message}
               </div>
             )}
 
             {error && (
-              <div className="alert alert--error" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="alert alert--error" style={{ marginBottom: 'var(--sp-md)' }}>
                 <strong>Error:</strong> {error}
               </div>
             )}
 
             {disksLoading && !disks?.length && (
               <GlassPanel variant="medium" padding="lg">
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Scanning for disks...
                 </div>
               </GlassPanel>
@@ -189,7 +189,7 @@ export default function Storage() {
 
             {!disksLoading && (!disks || disks.length === 0) && (
               <GlassPanel variant="medium" padding="lg">
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   No disks detected
                 </div>
               </GlassPanel>
@@ -201,40 +201,40 @@ export default function Storage() {
               return (
                 <GlassPanel key={disk.name} variant="medium" padding="md" hoverable
                   className={`animate-fade-in-up stagger-${i + 1}`}
-                  style={{ marginBottom: 'var(--space-3)', cursor: 'pointer' }}
+                  style={{ marginBottom: 'var(--sp-sm)', cursor: 'pointer' }}
                   onClick={() => setExpandedDisk(isExpanded ? null : disk.name)}
                 >
                   {/* Disk header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                       <span style={{ fontSize: '1.5rem' }}>⛁</span>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--color-ink)', display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)' }}>
                           /dev/{disk.name}
                           {disk.isSystem && (
                             <span style={{
-                              fontSize: 'var(--font-size-xs)',
+                              fontSize: '12px',
                               padding: '2px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                              color: '#EF4444',
+                              borderRadius: 'var(--r-sm)',
+                              backgroundColor: 'var(--color-error-soft)',
+                              color: 'var(--color-error)',
                               fontWeight: 500
                             }}>
                               SYSTEM
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '14px', color: 'var(--color-body)' }}>
                           {disk.model} · {disk.transport?.toUpperCase()}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-md)' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--color-ink)' }}>
                           {formatBytes(disk.size)}
                         </div>
-                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-body)' }}>
                           {(disk.children || []).length} partition{(disk.children || []).length !== 1 ? 's' : ''}
                         </div>
                       </div>
@@ -242,7 +242,7 @@ export default function Storage() {
                         status={disk.health === 'healthy' ? 'online' : disk.health === 'failing' ? 'error' : 'warning'}
                         label={disk.health === 'healthy' ? 'Healthy' : disk.health === 'failing' ? 'Failing' : 'N/A'}
                       />
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--color-body)', fontSize: '0.8rem' }}>
                         {isExpanded ? '▲' : '▼'}
                       </span>
                     </div>
@@ -250,13 +250,13 @@ export default function Storage() {
 
                   {/* Expanded: partitions + actions */}
                   {isExpanded && (
-                    <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 'var(--space-4)' }}
+                    <div style={{ marginTop: 'var(--sp-md)', borderTop: '1px solid var(--color-hairline)', paddingTop: 'var(--sp-md)' }}
                       onClick={e => e.stopPropagation()}>
                       {/* Disk details */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-xs)', marginBottom: 'var(--sp-md)' }}>
                         <div className="info-row">
                           <span className="info-row__label">Serial</span>
-                          <span className="info-row__value" style={{ fontSize: 'var(--font-size-xs)' }}>{disk.serial}</span>
+                          <span className="info-row__value" style={{ fontSize: '12px' }}>{disk.serial}</span>
                         </div>
                         <div className="info-row">
                           <span className="info-row__label">Transport</span>
@@ -267,39 +267,39 @@ export default function Storage() {
                       {/* Partitions */}
                       {disk.children && disk.children.length > 0 ? (
                         <>
-                          <h4 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+                          <h4 style={{ fontSize: '14px', color: 'var(--color-body)', marginBottom: 'var(--sp-xs)' }}>
                             Partitions
                           </h4>
                           {disk.children.map(part => (
                             <div key={part.name} style={{
                               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                              padding: 'var(--space-2) var(--space-3)',
-                              backgroundColor: 'rgba(255,255,255,0.03)',
-                              borderRadius: 'var(--radius-sm)',
-                              marginBottom: 'var(--space-2)'
+                              padding: 'var(--sp-xs) var(--sp-sm)',
+                              backgroundColor: 'var(--color-canvas-soft)',
+                              borderRadius: 'var(--r-sm)',
+                              marginBottom: 'var(--sp-xs)'
                             }}>
                               <div>
-                                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>/dev/{part.name}</span>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginLeft: 'var(--space-2)' }}>
+                                <span style={{ fontWeight: 500, color: 'var(--color-ink)' }}>/dev/{part.name}</span>
+                                <span style={{ fontSize: '12px', color: 'var(--color-body)', marginLeft: 'var(--sp-xs)' }}>
                                   {formatBytes(part.size)}
                                 </span>
                                 {part.fstype && (
                                   <span style={{
-                                    fontSize: 'var(--font-size-xs)', padding: '1px 6px',
-                                    borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(139,92,246,0.15)',
-                                    color: '#A78BFA', marginLeft: 'var(--space-2)'
+                                    fontSize: '12px', padding: '1px 6px',
+                                    borderRadius: 'var(--r-sm)', backgroundColor: 'var(--color-violet-soft)',
+                                    color: 'var(--color-violet)', marginLeft: 'var(--sp-xs)'
                                   }}>
                                     {part.fstype}
                                   </span>
                                 )}
                                 {part.mountpoint && (
-                                  <span style={{ fontSize: 'var(--font-size-xs)', color: '#10B981', marginLeft: 'var(--space-2)' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--color-cyan-deep)', marginLeft: 'var(--sp-xs)' }}>
                                     → {part.mountpoint}
                                   </span>
                                 )}
                               </div>
                               {!disk.isSystem && (
-                                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                <div style={{ display: 'flex', gap: 'var(--sp-xs)' }}>
                                   {part.mountpoint ? (
                                     <button className="btn btn--secondary btn--xs"
                                       onClick={() => handleUnmount(`/dev/${part.name}`, part.mountpoint)}
@@ -319,14 +319,14 @@ export default function Storage() {
                           ))}
                         </>
                       ) : (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-3)' }}>
+                        <div style={{ color: 'var(--color-body)', fontSize: '14px', marginBottom: 'var(--sp-sm)' }}>
                           No partitions found
                         </div>
                       )}
 
                       {/* Create Partition button */}
                       {!disk.isSystem && (
-                        <button className="btn btn--primary btn--sm" style={{ marginTop: 'var(--space-3)' }}
+                        <button className="btn btn--primary btn--sm" style={{ marginTop: 'var(--sp-sm)' }}
                           onClick={() => openPartModal(disk)}
                           disabled={actionLoading}>
                           {actionLoading ? 'Working...' : '+ Create Partition'}
@@ -334,8 +334,8 @@ export default function Storage() {
                       )}
                       {disk.isSystem && (
                         <div style={{
-                          fontSize: 'var(--font-size-xs)', color: '#EF4444', marginTop: 'var(--space-2)',
-                          padding: 'var(--space-2)', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-sm)'
+                          fontSize: '12px', color: 'var(--color-error)', marginTop: 'var(--sp-xs)',
+                          padding: 'var(--sp-xs)', backgroundColor: 'var(--color-error-soft)', borderRadius: 'var(--r-sm)'
                         }}>
                           ⚠ System disk — partitioning and formatting are disabled to protect the OS.
                         </div>
@@ -358,7 +358,7 @@ export default function Storage() {
               <button className="modal__close" onClick={() => setShowFormatModal(false)}>✕</button>
             </div>
             <div className="modal__body">
-              <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-3)', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 'var(--radius-sm)', color: '#FCA5A5' }}>
+              <div style={{ marginBottom: 'var(--sp-md)', padding: 'var(--sp-sm)', backgroundColor: 'var(--color-error-soft)', borderRadius: 'var(--r-sm)', color: 'var(--color-error)' }}>
                 ⚠ WARNING: Formatting will erase ALL data on <strong>{formatTarget}</strong>.
               </div>
               <div className="form-group">
@@ -399,15 +399,15 @@ export default function Storage() {
               <button className="modal__close" onClick={() => setShowPartModal(false)}>✕</button>
             </div>
             <div className="modal__body">
-              <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                Target: <strong style={{ color: 'var(--text-primary)' }}>/dev/{partDisk?.name}</strong>
+              <div style={{ marginBottom: 'var(--sp-sm)', fontSize: '14px', color: 'var(--color-body)' }}>
+                Target: <strong style={{ color: 'var(--color-ink)' }}>/dev/{partDisk?.name}</strong>
                 {' '} — {formatBytes(partDisk?.size)} total
               </div>
 
               {/* Mode selection */}
               <div className="form-group">
                 <label className="form-label">Operation Mode</label>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', gap: 'var(--sp-xs)' }}>
                   {[
                     { value: 'full', label: '🗄 Whole Disk', desc: 'Wipe & use 100%' },
                     { value: 'custom', label: '✂ Custom', desc: 'Multiple partitions' },
@@ -417,14 +417,14 @@ export default function Storage() {
                       className={`partition-mode-btn ${partMode === opt.value ? 'partition-mode-btn--active' : ''}`}
                       onClick={() => setPartMode(opt.value)}
                       style={{
-                        flex: 1, padding: 'var(--space-3)', borderRadius: 'var(--radius-md)',
-                        border: partMode === opt.value ? '2px solid var(--primary)' : '1px solid rgba(255,255,255,0.1)',
-                        backgroundColor: partMode === opt.value ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)',
-                        color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'center',
+                        flex: 1, padding: 'var(--sp-sm)', borderRadius: 'var(--r-md)',
+                        border: partMode === opt.value ? '2px solid var(--color-primary)' : '1px solid var(--color-hairline)',
+                        backgroundColor: partMode === opt.value ? 'var(--color-canvas-soft)' : 'var(--color-canvas)',
+                        color: 'var(--color-ink)', cursor: 'pointer', textAlign: 'center',
                         transition: 'all 0.2s ease'
                       }}>
                       <div style={{ fontSize: '1rem', marginBottom: '2px' }}>{opt.label}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>{opt.desc}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-body)' }}>{opt.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -432,24 +432,24 @@ export default function Storage() {
 
               {/* Warning for destructive modes */}
               {(partMode === 'full' || partMode === 'custom') && (
-                <div style={{ marginBottom: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 'var(--radius-sm)', color: '#FCA5A5', fontSize: 'var(--font-size-sm)' }}>
+                <div style={{ marginBottom: 'var(--sp-sm)', padding: 'var(--sp-xs) var(--sp-sm)', backgroundColor: 'var(--color-error-soft)', borderRadius: 'var(--r-sm)', color: 'var(--color-error)', fontSize: '14px' }}>
                   ⚠ This will <strong>wipe the entire disk</strong> and create a fresh GPT partition table.
                 </div>
               )}
 
               {partMode === 'append' && (
-                <div style={{ marginBottom: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', backgroundColor: 'rgba(16,185,129,0.1)', borderRadius: 'var(--radius-sm)', color: '#6EE7B7', fontSize: 'var(--font-size-sm)' }}>
+                <div style={{ marginBottom: 'var(--sp-sm)', padding: 'var(--sp-xs) var(--sp-sm)', backgroundColor: 'var(--color-cyan-soft)', borderRadius: 'var(--r-sm)', color: 'var(--color-cyan-deep)', fontSize: '14px' }}>
                   ✓ Existing partitions will NOT be modified. A new partition will be created in unallocated space.
                 </div>
               )}
 
               {/* Full mode — nothing else needed */}
               {partMode === 'full' && (
-                <div style={{ padding: 'var(--space-3)', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-                  <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                <div style={{ padding: 'var(--sp-sm)', backgroundColor: 'var(--color-canvas-soft)', borderRadius: 'var(--r-md)', marginBottom: 'var(--sp-sm)' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--color-body)' }}>
                     A single partition will be created using the entire disk capacity.
                   </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)', marginTop: 'var(--space-2)', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--color-primary)', marginTop: 'var(--sp-xs)', fontFamily: 'monospace' }}>
                     {formatBytes(partDisk?.size)} → 1 partition
                   </div>
                 </div>
@@ -457,23 +457,23 @@ export default function Storage() {
 
               {/* Custom mode — multiple partition sliders */}
               {partMode === 'custom' && (
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                <div style={{ marginBottom: 'var(--sp-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-xs)' }}>
                     <label className="form-label" style={{ marginBottom: 0 }}>Partitions</label>
-                    <span style={{ fontSize: 'var(--font-size-xs)', color: remainingMB > 100 ? '#10B981' : '#EF4444' }}>
+                    <span style={{ fontSize: '12px', color: remainingMB > 100 ? 'var(--color-cyan-deep)' : 'var(--color-error)' }}>
                       {formatBytes(remainingMB * 1024 * 1024)} remaining
                     </span>
                   </div>
 
                   {partEntries.map((entry, idx) => (
                     <div key={idx} style={{
-                      display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      backgroundColor: 'rgba(255,255,255,0.03)',
-                      borderRadius: 'var(--radius-sm)',
-                      marginBottom: 'var(--space-2)'
+                      display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)',
+                      padding: 'var(--sp-xs) var(--sp-sm)',
+                      backgroundColor: 'var(--color-canvas-soft)',
+                      borderRadius: 'var(--r-sm)',
+                      marginBottom: 'var(--sp-xs)'
                     }}>
-                      <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', minWidth: '16px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-body)', minWidth: '16px' }}>
                         #{idx + 1}
                       </span>
                       <input
@@ -482,16 +482,16 @@ export default function Storage() {
                         max={Math.max(1, entry.sizeMB + remainingMB)}
                         value={entry.sizeMB}
                         onChange={e => updatePartEntry(idx, parseInt(e.target.value))}
-                        style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                        style={{ flex: 1, accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                       />
-                      <span style={{ fontWeight: 600, color: 'var(--primary)', fontFamily: 'monospace', minWidth: '70px', textAlign: 'right', fontSize: 'var(--font-size-sm)' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'monospace', minWidth: '70px', textAlign: 'right', fontSize: '14px' }}>
                         {entry.sizeMB >= 1024
                           ? `${(entry.sizeMB / 1024).toFixed(1)} GB`
                           : `${entry.sizeMB} MB`}
                       </span>
                       {partEntries.length > 1 && (
                         <button onClick={() => removePartEntry(idx)}
-                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '1rem', padding: '2px 6px' }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', fontSize: '1rem', padding: '2px 6px' }}>
                           ✕
                         </button>
                       )}
@@ -501,12 +501,12 @@ export default function Storage() {
                   <button onClick={addPartEntry}
                     disabled={remainingMB <= 0}
                     className="btn btn--secondary btn--xs"
-                    style={{ marginTop: 'var(--space-2)' }}>
+                    style={{ marginTop: 'var(--sp-xs)' }}>
                     + Add Partition
                   </button>
 
                   {/* Visual bar */}
-                  <div style={{ marginTop: 'var(--space-3)', height: '24px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', display: 'flex', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                  <div style={{ marginTop: 'var(--sp-sm)', height: '24px', borderRadius: 'var(--r-sm)', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--color-canvas-soft-2)' }}>
                     {partEntries.map((entry, idx) => {
                       const pct = diskTotalMB > 0 ? (entry.sizeMB / diskTotalMB) * 100 : 0;
                       const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
@@ -514,7 +514,7 @@ export default function Storage() {
                         <div key={idx} style={{
                           width: `${pct}%`, backgroundColor: colors[idx % colors.length],
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '10px', fontWeight: 600, color: '#fff',
+                          fontSize: '10px', fontWeight: 600, color: 'var(--color-ink)',
                           minWidth: pct > 3 ? undefined : '2px',
                           transition: 'width 0.3s ease'
                         }}>
@@ -526,7 +526,7 @@ export default function Storage() {
                       <div style={{
                         width: `${(remainingMB / diskTotalMB) * 100}%`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '10px', color: 'var(--text-tertiary)'
+                        fontSize: '10px', color: 'var(--color-mute)'
                       }}>
                         Free
                       </div>
@@ -537,10 +537,10 @@ export default function Storage() {
 
               {/* Append mode — size slider */}
               {partMode === 'append' && (
-                <div style={{ padding: 'var(--space-3)', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                <div style={{ padding: 'var(--sp-sm)', backgroundColor: 'var(--color-canvas-soft)', borderRadius: 'var(--r-md)', marginBottom: 'var(--sp-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-xs)' }}>
                     <label className="form-label" style={{ marginBottom: 0 }}>Size</label>
-                    <span style={{ fontWeight: 600, color: 'var(--primary)', fontFamily: 'monospace' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'monospace' }}>
                       {appendSizeMB === 0 ? 'Use all free space' : (
                         appendSizeMB >= 1024 ? `${(appendSizeMB / 1024).toFixed(1)} GB` : `${appendSizeMB} MB`
                       )}
@@ -552,9 +552,9 @@ export default function Storage() {
                     max={diskTotalMB}
                     value={appendSizeMB}
                     onChange={e => setAppendSizeMB(parseInt(e.target.value))}
-                    style={{ width: '100%', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                    style={{ width: '100%', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-mute)', marginTop: '2px' }}>
                     <span>All free space</span>
                     <span>Max ({formatBytes(diskTotalMB * 1024 * 1024)})</span>
                   </div>
@@ -563,12 +563,12 @@ export default function Storage() {
 
               {/* Confirmation */}
               <div className="form-group">
-                <label className="form-label" style={{ color: (partMode === 'full' || partMode === 'custom') ? '#EF4444' : 'var(--text-primary)' }}>
-                  Type <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>YES_PARTITION_DISK</code> to confirm
+                <label className="form-label" style={{ color: (partMode === 'full' || partMode === 'custom') ? '#EF4444' : 'var(--color-ink)' }}>
+                  Type <code style={{ background: 'var(--color-canvas-soft-2)', padding: '2px 6px', borderRadius: '4px' }}>YES_PARTITION_DISK</code> to confirm
                 </label>
                 <input className="form-input" value={partConfirm} onChange={e => setPartConfirm(e.target.value)}
                   placeholder="YES_PARTITION_DISK"
-                  style={{ borderColor: partConfirm === 'YES_PARTITION_DISK' ? '#10B981' : undefined }} />
+                  style={{ borderColor: partConfirm === 'YES_PARTITION_DISK' ? 'var(--color-cyan-deep)' : undefined }} />
               </div>
             </div>
             <div className="modal__footer">

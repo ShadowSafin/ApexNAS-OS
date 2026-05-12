@@ -1,3 +1,4 @@
+/* ─── Progress Ring ─── */
 .progress-ring {
   display: inline-flex;
   align-items: center;
@@ -11,7 +12,7 @@
 
 .progress-ring__bg {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: var(--color-canvas-soft-2);
 }
 
 .progress-ring__fill {
@@ -29,14 +30,17 @@
 }
 
 .progress-ring__value {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-display-sm);
+  font-weight: var(--fw-display);
+  color: var(--color-ink);
   line-height: 1;
+  letter-spacing: var(--ls-display-sm);
 }
 
 .progress-ring__label {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
   margin-top: 2px;
 }

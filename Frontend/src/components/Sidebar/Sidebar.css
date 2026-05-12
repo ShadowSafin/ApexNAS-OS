@@ -1,3 +1,4 @@
+/* ─── Sidebar ─── */
 .sidebar {
   position: fixed;
   left: 0;
@@ -7,102 +8,103 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  background: rgba(12, 16, 30, 0.82);
-  backdrop-filter: blur(var(--blur-lg));
-  -webkit-backdrop-filter: blur(var(--blur-lg));
-  border-right: 1px solid var(--border-subtle);
+  background: var(--color-canvas);
+  border-right: 1px solid var(--color-hairline);
   animation: fadeIn var(--duration-slow) var(--ease-out) both;
 }
 
 .sidebar__header {
-  padding: var(--space-6) var(--space-6) var(--space-4);
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-md);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-sm);
 }
 
 .sidebar__logo {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent-primary) 0%, #8B5CF6 100%);
+  border-radius: var(--r-sm);
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-sm);
-  color: white;
+  font-weight: var(--fw-display);
+  font-size: var(--fs-caption);
+  color: var(--color-on-primary);
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(108, 159, 255, 0.25);
 }
 
 .sidebar__title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-tight);
-  color: var(--text-primary);
+  font-size: var(--fs-body-md);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--ls-display-sm);
+  color: var(--color-ink);
 }
 
 .sidebar__subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .sidebar__nav {
   flex: 1;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--sp-xs) var(--sp-sm);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .sidebar__section-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-muted);
-  letter-spacing: var(--letter-spacing-wide);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  color: var(--color-mute);
+  letter-spacing: 0;
   text-transform: uppercase;
-  padding: var(--space-4) var(--space-3) var(--space-2);
+  padding: var(--sp-md) var(--sp-sm) var(--sp-xs);
 }
 
 .sidebar__footer {
-  padding: var(--space-4) var(--space-6);
-  border-top: 1px solid var(--border-subtle);
+  padding: var(--sp-md) var(--sp-lg);
+  border-top: 1px solid var(--color-hairline);
 }
 
 .sidebar__version {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
 }
 
 /* ─── Sidebar Item ─── */
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-secondary);
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-body);
+  color: var(--color-body);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
   position: relative;
   user-select: none;
+  text-decoration: none;
 }
 
 .sidebar-item:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-ink);
+  background: var(--color-canvas-soft-2);
 }
 
 .sidebar-item--active {
-  color: var(--text-primary);
-  background: var(--accent-subtle);
+  color: var(--color-ink);
+  background: var(--color-canvas-soft);
+  font-weight: var(--fw-body-strong);
 }
 
 .sidebar-item--active::before {
@@ -113,9 +115,8 @@
   transform: translateY(-50%);
   width: 3px;
   height: 16px;
-  border-radius: 0 var(--radius-full) var(--radius-full) 0;
-  background: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(var(--accent-primary-rgb), 0.4);
+  border-radius: 0 var(--r-full) var(--r-full) 0;
+  background: var(--color-primary);
 }
 
 .sidebar-item__icon {
@@ -125,13 +126,12 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: var(--font-size-lg);
-  opacity: 0.7;
+  font-size: var(--fs-body-md);
+  opacity: 0.5;
 }
 
 .sidebar-item--active .sidebar-item__icon {
   opacity: 1;
-  color: var(--accent-primary);
 }
 
 .sidebar-item__label {
@@ -144,37 +144,33 @@
 .sidebar__user-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: var(--sp-xs);
+  margin-bottom: var(--sp-xs);
 }
 
 .sidebar__user-name {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-body-strong);
+  color: var(--color-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .sidebar__logout-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  background: var(--color-canvas);
+  color: var(--color-body);
+  border: 1px solid var(--color-hairline);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-body-strong);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
 
 .sidebar__logout-btn:hover {
-  background: rgba(255, 95, 109, 0.15);
-  color: #ff5f6d;
-  border-color: rgba(255, 95, 109, 0.3);
-}
-
-.sidebar__logout-btn:active {
-  transform: scale(0.98);
+  background: var(--color-error-soft);
+  color: var(--color-error-deep);
+  border-color: var(--color-error-soft);
 }

@@ -194,7 +194,7 @@ export default function AddShareModal({ onClose, onSuccess }) {
                 </>
               )}
 
-              {fsError && <div className="form-error" style={{ marginTop: 'var(--space-2)' }}>{fsError}</div>}
+              {fsError && <div className="form-error" style={{ marginTop: 'var(--sp-xs)' }}>{fsError}</div>}
             </div>
 
             {/* ── Share Name ──────────────────────────── */}

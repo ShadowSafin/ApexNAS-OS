@@ -39,10 +39,10 @@ function getPrimaryIP() {
       if (ipv4) return ipv4.address;
     }
     
-    return 'localhost';
+    return 'apexnas.local';
   } catch (err) {
     logger.warn('Failed to determine primary IP:', err.message);
-    return 'localhost';
+    return 'apexnas.local';
   }
 }
 

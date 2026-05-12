@@ -70,13 +70,13 @@ export default function Dashboard() {
 
     // Auto-refresh metrics every 3 seconds for real-time feel
     const metricsInterval = setInterval(() => {
-      fetchMetrics().catch(() => {});
+      fetchMetrics().catch(() => { });
     }, 3000);
 
     // Refresh services/access less frequently (every 15s)
     const slowInterval = setInterval(() => {
-      fetchServices().catch(() => {});
-      fetchAccessInfo().catch(() => {});
+      fetchServices().catch(() => { });
+      fetchAccessInfo().catch(() => { });
     }, 15000);
 
     return () => {
@@ -125,10 +125,10 @@ export default function Dashboard() {
 
   // Check if we have disks with available usage data
   const hasDiskUsageData = disks && disks.length > 0 && diskUsage && diskUsage.length > 0;
-  
+
   // Calculate combined disk sizes from all disks
   const combinedDiskTotal = disks?.reduce((sum, d) => sum + (d.size || 0), 0) || 0;
-  
+
   // Get actual used/available from diskUsage data
   const combinedDiskUsed = diskUsage?.reduce((sum, u) => sum + (u.used || 0), 0) || 0;
   const combinedDiskAvailFromUsage = diskUsage?.reduce((sum, u) => sum + (u.available || 0), 0) || 0;
@@ -173,16 +173,9 @@ export default function Dashboard() {
         <div className="dashboard">
           {/* Error message */}
           {error && (
-            <div style={{
-              padding: 'var(--space-3)',
-              marginBottom: 'var(--space-4)',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
-              fontSize: 'var(--font-size-sm)'
-            }}>
-              <strong>Error:</strong> {error}
+            <div className="error-banner">
+              <span><strong>Error:</strong> {error}</span>
+              <button className="error-close" onClick={() => setError(null)}>×</button>
             </div>
           )}
 
@@ -196,7 +189,8 @@ export default function Dashboard() {
             </div>
             <GlassPanel variant="medium" padding="lg">
               {systemLoading && !systemInfo ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
                   Loading system information...
                 </div>
               ) : systemInfo ? (
@@ -231,7 +225,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div className="empty-state">
                   No system information available
                 </div>
               )}
@@ -253,7 +247,7 @@ export default function Dashboard() {
                     value={cpu}
                     size={120}
                     strokeWidth={8}
-                    color="var(--accent-primary)"
+                    color="var(--color-link)"
                     label="CPU"
                   />
                   <span className="dashboard__usage-title">CPU Usage</span>
@@ -263,7 +257,7 @@ export default function Dashboard() {
                     value={mem.percent}
                     size={120}
                     strokeWidth={8}
-                    color="#8B5CF6"
+                    color="var(--color-violet)"
                     label="RAM"
                   />
                   <span className="dashboard__usage-title">Memory Usage</span>
@@ -273,7 +267,7 @@ export default function Dashboard() {
                     value={storagePercent}
                     size={120}
                     strokeWidth={8}
-                    color="#F59E0B"
+                    color="var(--color-warning)"
                     label="Disk"
                   />
                   <span className="dashboard__usage-title">Storage Usage</span>
@@ -334,7 +328,7 @@ export default function Dashboard() {
                 <div className="info-row">
                   <span className="info-row__label">CPU Temperature</span>
                   <span className="info-row__value" style={{
-                    color: temp.cpuTemp > 80 ? '#EF4444' : temp.cpuTemp > 60 ? '#F59E0B' : '#10B981'
+                    color: temp.cpuTemp > 80 ? 'var(--color-error)' : temp.cpuTemp > 60 ? 'var(--color-warning)' : 'var(--color-cyan-deep)'
                   }}>
                     {temp.cpuTemp}°C
                   </span>
@@ -351,7 +345,7 @@ export default function Dashboard() {
                 <div className="info-row">
                   <span className="info-row__label">Disk Temperature</span>
                   <span className="info-row__value" style={{
-                    color: temp.diskTemp > 60 ? '#EF4444' : temp.diskTemp > 45 ? '#F59E0B' : '#10B981'
+                    color: temp.diskTemp > 60 ? 'var(--color-error)' : temp.diskTemp > 45 ? 'var(--color-warning)' : 'var(--color-cyan-deep)'
                   }}>
                     {temp.diskTemp}°C
                   </span>
@@ -377,34 +371,34 @@ export default function Dashboard() {
             </div>
             <GlassPanel variant="medium" padding="lg">
               {diskUsageLoading && effectiveDiskTotal === 0 ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Loading storage data...
                 </div>
               ) : effectiveDiskTotal > 0 || (disks && disks.length > 0) ? (
                 <>
                   {/* Show all physical disks including USB, PCIe, etc. */}
                   {disks && disks.length > 0 ? (
-                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <div style={{ marginBottom: 'var(--sp-md)' }}>
                       {[...disks].sort((a, b) => (b.isSystem ? 1 : 0) - (a.isSystem ? 1 : 0)).map((disk) => {
                         const diskPartitions = disk.children || [];
                         const partitionUsage = diskPartitions.map(p => {
                           const mountUsage = diskUsage?.find(u => u.mountpoint === p.mountpoint);
                           return mountUsage || null;
                         }).filter(Boolean);
-                        
+
                         const totalSize = disk.size || 0;
                         const totalUsed = partitionUsage.reduce((sum, u) => sum + (u.used || 0), 0);
                         const totalAvailFromUsage = partitionUsage.reduce((sum, u) => sum + (u.available || 0), 0);
                         const totalAvail = totalAvailFromUsage > 0 ? totalAvailFromUsage : (totalSize > 0 ? totalSize - totalUsed : 0);
                         const diskPercent = totalSize > 0 ? Math.round((totalUsed / totalSize) * 100) : 0;
-                        
+
                         return (
-                          <div key={disk.name} style={{ marginBottom: 'var(--space-3)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
-                              <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                          <div key={disk.name} style={{ marginBottom: 'var(--sp-sm)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--sp-xxs)' }}>
+                              <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)' }}>
                                 <span>⛁</span>
                                 /dev/{disk.name}
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginLeft: 'var(--space-2)' }}>
+                                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--color-body)', marginLeft: 'var(--sp-xs)' }}>
                                   ({disk.transport?.toUpperCase()})
                                 </span>
                               </span>
@@ -420,7 +414,7 @@ export default function Dashboard() {
                                 }}
                               />
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--color-body)', marginTop: '2px' }}>
                               <span>{diskPercent}% used</span>
                               <span>{formatBytes(totalAvail)} available</span>
                             </div>
@@ -429,11 +423,11 @@ export default function Dashboard() {
                       })}
                     </div>
                   ) : diskUsage && diskUsage.length > 0 ? (
-                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <div style={{ marginBottom: 'var(--sp-md)' }}>
                       {diskUsage.map((usage, idx) => (
-                        <div key={usage.mountpoint || idx} style={{ marginBottom: 'var(--space-3)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
-                            <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div key={usage.mountpoint || idx} style={{ marginBottom: 'var(--sp-sm)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--sp-xxs)' }}>
+                            <span className="info-row__label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)' }}>
                               <span>⛁</span>
                               {usage.mountpoint || `Disk ${idx + 1}`}
                             </span>
@@ -449,7 +443,7 @@ export default function Dashboard() {
                               }}
                             />
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-caption)', color: 'var(--color-body)', marginTop: '2px' }}>
                             <span>{getDiskPercent(usage)}% used</span>
                             <span>{formatBytes(usage.available)} available</span>
                           </div>
@@ -457,8 +451,8 @@ export default function Dashboard() {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ marginBottom: 'var(--space-4)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                    <div style={{ marginBottom: 'var(--sp-md)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--sp-xs)' }}>
                         <span className="info-row__label">
                           {formatBytes(effectiveDiskUsed)} used of {formatBytes(effectiveDiskTotal)}
                         </span>
@@ -469,7 +463,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                  <div className="dashboard__system-info" style={{ marginTop: 'var(--space-4)' }}>
+                  <div className="dashboard__system-info" style={{ marginTop: 'var(--sp-md)' }}>
                     <div className="info-row">
                       <span className="info-row__label">Total Pool</span>
                       <span className="info-row__value">
@@ -497,7 +491,7 @@ export default function Dashboard() {
                   </div>
                 </>
               ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   No storage data available
                 </div>
               )}
@@ -515,7 +509,7 @@ export default function Dashboard() {
             <div className="dashboard__network-grid">
               {networkLoading ? (
                 <GlassPanel variant="subtle" padding="md">
-                  <div style={{ textAlign: 'center', color: '#999' }}>
+                  <div style={{ textAlign: 'center', color: 'var(--color-mute)' }}>
                     Loading network interfaces...
                   </div>
                 </GlassPanel>
@@ -532,7 +526,7 @@ export default function Dashboard() {
                     </div>
                     <div className="info-row">
                       <span className="info-row__label">MAC Address</span>
-                      <span className="info-row__value" style={{ fontSize: 'var(--font-size-xs)' }}>
+                      <span className="info-row__value" style={{ fontSize: 'var(--fs-caption)' }}>
                         {iface.mac || '—'}
                       </span>
                     </div>
@@ -547,7 +541,7 @@ export default function Dashboard() {
                 ))
               ) : (
                 <GlassPanel variant="subtle" padding="md">
-                  <div style={{ textAlign: 'center', color: '#999' }}>
+                  <div style={{ textAlign: 'center', color: 'var(--color-mute)' }}>
                     No network interfaces available
                   </div>
                 </GlassPanel>
@@ -562,7 +556,7 @@ export default function Dashboard() {
           {toasts.map((toast) => (
             <div
               key={toast.id}
-              style={{ pointerEvents: 'auto', marginBottom: 'var(--space-2)' }}
+              style={{ pointerEvents: 'auto', marginBottom: 'var(--sp-xs)' }}
               onAnimationEnd={() => removeToast(toast.id)}
             >
               <Toast

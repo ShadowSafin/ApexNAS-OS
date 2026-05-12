@@ -85,7 +85,7 @@ export default function Users() {
     return (
       <>
         <TopBar title="Users" breadcrumbs={['Access Control', 'Users']} />
-        <div className="app-layout__content">
+        <div className="page-content">
           <div className="users-container">
             <div className="loading-state">
               <div className="loading-spinner" />
@@ -100,7 +100,7 @@ export default function Users() {
   return (
     <>
       <TopBar title="Users" breadcrumbs={['Access Control', 'Users']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="users-container">
           {error && (
             <div className="error-banner">

@@ -204,15 +204,15 @@ export default function Filesystems() {
 
   const getUsageColor = (percent) => {
     const pct = parseFloat(percent) || 0;
-    if (pct >= 90) return '#EF4444';
-    if (pct >= 70) return '#F59E0B';
-    return '#10B981';
+    if (pct >= 90) return 'var(--color-error)';
+    if (pct >= 70) return 'var(--color-warning)';
+    return 'var(--color-cyan-deep)';
   };
 
   return (
     <>
       <TopBar title="Filesystems" breadcrumbs={['Storage', 'Filesystems']} />
-      <div className="app-layout__content">
+      <div className="page-content">
         <div className="filesystems-page">
           <div className="section">
             <div className="section__header">
@@ -222,7 +222,7 @@ export default function Filesystems() {
                   {loading ? 'Loading...' : `${filesystems.length} filesystems`}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <div style={{ display: 'flex', gap: 'var(--sp-xs)' }}>
                 <button className="btn btn--secondary btn--sm" onClick={loadFilesystems} disabled={loading}>
                   ↻ Refresh
                 </button>
@@ -236,20 +236,20 @@ export default function Filesystems() {
             </div>
 
             {actionResult && (
-              <div className={`alert alert--${actionResult.type}`} style={{ marginBottom: 'var(--space-4)' }}>
+              <div className={`alert alert--${actionResult.type}`} style={{ marginBottom: 'var(--sp-md)' }}>
                 {actionResult.type === 'success' ? '✓' : '✕'} {actionResult.message}
               </div>
             )}
 
             {error && (
-              <div className="alert alert--error" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="alert alert--error" style={{ marginBottom: 'var(--sp-md)' }}>
                 <strong>Error:</strong> {error}
               </div>
             )}
 
             {loading && filesystems.length === 0 && (
               <GlassPanel variant="medium" padding="lg">
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Loading filesystems...
                 </div>
               </GlassPanel>
@@ -257,10 +257,10 @@ export default function Filesystems() {
 
             {!loading && filesystems.length === 0 && (
               <GlassPanel variant="medium" padding="lg">
-                <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: '#999' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: 'var(--space-3)' }}>💾</div>
-                  <div style={{ fontWeight: 500, marginBottom: 'var(--space-2)', color: 'var(--text-primary)' }}>No Filesystems</div>
-                  <div style={{ fontSize: 'var(--font-size-sm)' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-lg)', color: 'var(--color-mute)' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: 'var(--sp-sm)' }}>💾</div>
+                  <div style={{ fontWeight: 500, marginBottom: 'var(--sp-xs)', color: 'var(--color-ink)' }}>No Filesystems</div>
+                  <div style={{ fontSize: '14px' }}>
                     Create a filesystem on a partition, then mount it.
                   </div>
                 </div>
@@ -276,27 +276,27 @@ export default function Filesystems() {
               return (
                 <GlassPanel key={fs.mountpoint || fs.device} variant="medium" padding="md"
                   className={`animate-fade-in-up stagger-${i + 1}`}
-                  style={{ marginBottom: 'var(--space-3)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  style={{ marginBottom: 'var(--sp-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-sm)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                       <span style={{ fontSize: '1.3rem' }}>⬢</span>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--color-ink)', display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)' }}>
                           {fs.mountpoint}
                           <span style={{
-                            fontSize: 'var(--font-size-xs)', padding: '1px 6px',
-                            borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(139,92,246,0.15)',
-                            color: '#A78BFA'
+                            fontSize: '12px', padding: '1px 6px',
+                            borderRadius: 'var(--r-sm)', backgroundColor: 'var(--color-violet-soft)',
+                            color: 'var(--color-violet)'
                           }}>
                             {fs.fstype}
                           </span>
                         </div>
-                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '14px', color: 'var(--color-body)' }}>
                           {fs.device}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
                       <StatusIndicator status="online" label="Mounted" />
                       {(isStorageMount || (fs.mountpoint || '').startsWith('/media/')) && (
                         <button className="btn btn--secondary btn--xs" onClick={() => handleUnmount(fs.mountpoint)}
@@ -308,8 +308,8 @@ export default function Filesystems() {
                   </div>
 
                   {/* Usage bar */}
-                  <div style={{ marginBottom: 'var(--space-2)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  <div style={{ marginBottom: 'var(--sp-xs)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-body)', marginBottom: '4px' }}>
                       <span>{formatBytes(fs.used)} used of {formatBytes(fs.size)}</span>
                       <span style={{ color: getUsageColor(pct), fontWeight: 500 }}>{pct}%</span>
                     </div>
@@ -320,7 +320,7 @@ export default function Filesystems() {
                         transition: 'width 0.5s ease'
                       }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '12px', color: 'var(--color-body)', marginTop: '4px' }}>
                       {formatBytes(fs.available)} available
                     </div>
                   </div>
@@ -340,13 +340,13 @@ export default function Filesystems() {
               <button className="modal__close" onClick={() => setShowCreateModal(false)}>✕</button>
             </div>
             <div className="modal__body">
-              <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-3)', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 'var(--radius-sm)', color: '#FCA5A5' }}>
+              <div style={{ marginBottom: 'var(--sp-md)', padding: 'var(--sp-sm)', backgroundColor: 'var(--color-error-soft)', borderRadius: 'var(--r-sm)', color: 'var(--color-error)' }}>
                 ⚠ This will format the selected device and erase all data.
               </div>
               <div className="form-group">
                 <label className="form-label">Device</label>
                 {availableDevices.length === 0 ? (
-                  <div style={{ padding: 'var(--space-3)', color: '#F59E0B', fontSize: 'var(--font-size-sm)', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ padding: 'var(--sp-sm)', color: 'var(--color-warning)', fontSize: '14px', backgroundColor: 'var(--color-warning-soft)', borderRadius: 'var(--r-sm)' }}>
                   No unmounted partitions or disks available. Partition a disk first from the Storage page.
                   </div>
                 ) : (
@@ -394,7 +394,7 @@ export default function Filesystems() {
               <div className="form-group">
                 <label className="form-label">Device</label>
                 {unmountableDevices.length === 0 ? (
-                  <div style={{ padding: 'var(--space-3)', color: '#F59E0B', fontSize: 'var(--font-size-sm)', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ padding: 'var(--sp-sm)', color: 'var(--color-warning)', fontSize: '14px', backgroundColor: 'var(--color-warning-soft)', borderRadius: 'var(--r-sm)' }}>
                     No unmounted filesystems available. Create a filesystem first.
                   </div>
                 ) : (
@@ -409,7 +409,7 @@ export default function Filesystems() {
                 <label className="form-label">Label (optional)</label>
                 <input className="form-input" value={mountLabel} onChange={e => setMountLabel(e.target.value)}
                   placeholder="e.g. data, backups, media" />
-                <small style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                <small style={{ color: 'var(--color-body)', fontSize: '12px' }}>
                   Mounts to /mnt/storage/{'<label>'}. Leave empty for auto-generated name.
                 </small>
               </div>
@@ -434,47 +434,47 @@ export default function Filesystems() {
             </div>
             <div className="modal__body">
               {unmountDialog.loading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: '#999' }}>
+                <div style={{ textAlign: 'center', padding: 'var(--sp-md)', color: 'var(--color-mute)' }}>
                   Checking for active shares...
                 </div>
               ) : (
                 <>
-                  <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-                    You are about to unmount <strong style={{ color: 'var(--text-primary)' }}>{unmountDialog.mountpoint}</strong>.
+                  <div style={{ marginBottom: 'var(--sp-sm)', fontSize: '14px', color: 'var(--color-body)' }}>
+                    You are about to unmount <strong style={{ color: 'var(--color-ink)' }}>{unmountDialog.mountpoint}</strong>.
                     The filesystem will become inaccessible and the fstab entry will be removed.
                   </div>
 
                   {unmountDialog.affectedShares.length > 0 && (
                     <div style={{
-                      padding: 'var(--space-3)',
-                      backgroundColor: 'rgba(239,68,68,0.1)',
-                      border: '1px solid rgba(239,68,68,0.3)',
-                      borderRadius: 'var(--radius-sm)',
-                      marginBottom: 'var(--space-3)'
+                      padding: 'var(--sp-sm)',
+                      backgroundColor: 'var(--color-error-soft)',
+                      border: '1px solid var(--color-error-soft)',
+                      borderRadius: 'var(--r-sm)',
+                      marginBottom: 'var(--sp-sm)'
                     }}>
-                      <div style={{ color: '#FCA5A5', fontWeight: 600, marginBottom: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
+                      <div style={{ color: 'var(--color-error)', fontWeight: 600, marginBottom: 'var(--sp-xs)', fontSize: '14px' }}>
                         ⚠ {unmountDialog.affectedShares.length} active share{unmountDialog.affectedShares.length > 1 ? 's' : ''} will be affected:
                       </div>
                       {unmountDialog.affectedShares.map((share, i) => (
                         <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-                          padding: '6px var(--space-2)',
-                          backgroundColor: 'rgba(0,0,0,0.2)',
-                          borderRadius: 'var(--radius-xs)',
+                          display: 'flex', alignItems: 'center', gap: 'var(--sp-xs)',
+                          padding: '6px var(--sp-xs)',
+                          backgroundColor: 'var(--color-canvas-soft-2)',
+                          borderRadius: 'var(--r-xs)',
                           marginBottom: '4px',
-                          fontSize: 'var(--font-size-xs)'
+                          fontSize: '12px'
                         }}>
-                          <span style={{ color: '#EF4444' }}>●</span>
-                          <span style={{ color: '#fff', fontWeight: 500 }}>{share.name}</span>
-                          <span style={{ color: 'var(--text-tertiary)' }}>→ {share.path}</span>
+                          <span style={{ color: 'var(--color-error)' }}>●</span>
+                          <span style={{ color: 'var(--color-ink)', fontWeight: 500 }}>{share.name}</span>
+                          <span style={{ color: 'var(--color-mute)' }}>→ {share.path}</span>
                           {share.services && (
-                            <span style={{ marginLeft: 'auto', color: '#FCA5A5', fontSize: '11px' }}>
+                            <span style={{ marginLeft: 'auto', color: 'var(--color-error)', fontSize: '11px' }}>
                               {[share.services.smb?.enabled && 'SMB', share.services.nfs?.enabled && 'NFS', share.services.ftp?.enabled && 'FTP'].filter(Boolean).join(', ') || 'No protocols'}
                             </span>
                           )}
                         </div>
                       ))}
-                      <div style={{ color: '#FCA5A5', fontSize: 'var(--font-size-xs)', marginTop: 'var(--space-2)' }}>
+                      <div style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: 'var(--sp-xs)' }}>
                         These shares will become inaccessible. Clients connected via SMB/NFS/FTP may experience errors.
                       </div>
                     </div>
@@ -482,13 +482,13 @@ export default function Filesystems() {
 
                   {unmountDialog.affectedShares.length === 0 && (
                     <div style={{
-                      padding: 'var(--space-3)',
-                      backgroundColor: 'rgba(16,185,129,0.1)',
-                      border: '1px solid rgba(16,185,129,0.3)',
-                      borderRadius: 'var(--radius-sm)',
-                      marginBottom: 'var(--space-3)',
-                      color: '#6EE7B7',
-                      fontSize: 'var(--font-size-sm)'
+                      padding: 'var(--sp-sm)',
+                      backgroundColor: 'var(--color-cyan-soft)',
+                      border: '1px solid var(--color-cyan-soft)',
+                      borderRadius: 'var(--r-sm)',
+                      marginBottom: 'var(--sp-sm)',
+                      color: 'var(--color-cyan-deep)',
+                      fontSize: '14px'
                     }}>
                       ✓ No active shares found on this filesystem. Safe to unmount.
                     </div>

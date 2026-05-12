@@ -1,72 +1,60 @@
+/* ─── Metric Card ─── */
 .metric-card {
-  position: relative;
-  border-radius: var(--radius-lg);
-  background: var(--glass-subtle-bg);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-6);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-level-2);
+  padding: var(--sp-lg);
   transition: all var(--duration-normal) var(--ease-out);
-  overflow: hidden;
-}
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--edge-highlight);
-  pointer-events: none;
 }
 
 .metric-card:hover {
-  transform: translateY(-2px) scale(1.008);
-  box-shadow: var(--shadow-md), var(--shadow-glow);
-  border-color: var(--border-medium);
+  box-shadow: var(--shadow-level-3);
+  transform: translateY(-1px);
 }
 
 .metric-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-md);
 }
 
 .metric-card__label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  color: var(--color-mute);
   text-transform: uppercase;
-  letter-spacing: var(--letter-spacing-wide);
 }
 
 .metric-card__icon {
-  font-size: var(--font-size-xl);
-  opacity: 0.5;
+  font-size: var(--fs-display-sm);
+  opacity: 0.3;
 }
 
 .metric-card__value {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-primary);
-  letter-spacing: var(--letter-spacing-tight);
-  line-height: var(--line-height-tight);
-  margin-bottom: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-display-md);
+  font-weight: var(--fw-display);
+  color: var(--color-ink);
+  letter-spacing: var(--ls-display-md);
+  line-height: var(--lh-display-md);
+  margin-bottom: var(--sp-xxs);
 }
 
 .metric-card__unit {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-regular);
-  color: var(--text-secondary);
-  margin-left: var(--space-1);
+  font-size: var(--fs-body-md);
+  font-weight: var(--fw-body);
+  color: var(--color-body);
+  margin-left: var(--sp-xxs);
 }
 
 .metric-card__sub {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  color: var(--color-mute);
 }
 
 .metric-card__chart {
-  margin-top: var(--space-4);
+  margin-top: var(--sp-md);
 }

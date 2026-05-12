@@ -9,8 +9,8 @@ const server = http.createServer(app);
 
 setupWebSocket(server);
 
-server.listen(config.port, () => {
-  logger.info(`ApexNAS backend listening on port ${config.port}`);
+server.listen(config.port, '0.0.0.0', () => {
+  logger.info(`ApexNAS backend listening on http://apexnas:${config.port}`);
 });
 
 function shutdown(signal) {
